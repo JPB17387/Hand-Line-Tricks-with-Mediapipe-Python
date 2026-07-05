@@ -1,8 +1,8 @@
 <table align="center" width="100%">
   <tr>
     <td align="center" bgcolor="#1A1C23" style="padding: 40px; border-radius: 8px;">
-      <h1><font color="#FFFFFF">Antigravity Hand Tracking</font></h1>
-      <p><font color="#A0AEC0">Dynamic real-time hand tracking visualization built with Python and MediaPipe.</font></p>
+      <h1><font color="#FFFFFF">OpenCV Hand Tracking</font></h1>
+      <p><font color="#A0AEC0">Dynamic real-time hand tracking visualization built with Python and MediaPipe. Made by Jhon Paul Baonil</font></p>
     </td>
   </tr>
 </table>
@@ -87,6 +87,8 @@ Finally, launch the visualization file. Make sure you are in the root project fo
 
 ```bash
 python main.py
+
+or press the play button in the top right side of the file window.
 ```
 
 A window will appear asking you to choose a camera. Select one, and press `q` on your keyboard at any time to exit the visualization.

@@ -50,7 +50,7 @@ def choose_camera():
         root.after(0, build_ui, available)
         
     def build_ui(available):
-        lbl.config(text="Select the camera to use:")
+        lbl.config(text="Select the camera to use bitch!!:")
         if not available:
             lbl.config(text="No cameras found! Trying default 0...")
             btn = ttk.Button(btn_frame, text="Continue (Camera 0)", command=lambda: on_select(0))
@@ -60,9 +60,9 @@ def choose_camera():
         for idx in available:
             name = f"Camera {idx}"
             if idx == 0:
-                name += " (Usually Built-in)"
+                name += " (Built in Camera)"
             else:
-                name += " (External / Android)"
+                name += " (Webcam / Droidcam)"
             btn = ttk.Button(btn_frame, text=name, command=lambda i=idx: on_select(i))
             btn.pack(pady=5, fill=tk.X)
             
