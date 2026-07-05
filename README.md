@@ -15,15 +15,17 @@ It is designed to run smoothly on systems with modest resources (e.g., 4GB RAM, 
 
 ## ✨ Features & Visual Effects
 
-The application supports multiple interactive, eye-catching hand effects that you can switch between on-the-fly:
+The application supports multiple interactive, eye-catching hand effects that you can switch between on-the-fly. **Note that in all effects, hands are visualized independently, with no lines or arcs connecting your two hands together.**
 
-- **0️⃣ Standard Glow (Classic):** Renders glowing joints and draws distance-based, color-shifting connection lines between fingertips.
-- **1️⃣ Inversion Portal:** Inverts colors inside a bounding box around your hands, framed by a high-tech glowing corner HUD.
-- **2️⃣ Energy Pulse:** Shoots lightning arcs between fingers (or outward radially if one hand is active) that react to movement speed.
+- **0️⃣ Standard Glow (Classic):** Renders glowing skeletal joints within each hand and draws distance-based color-shifting lines.
+- **1️⃣ Inversion Portal:** Inverts colors inside a bounding box around each hand, framed by a high-tech glowing corner HUD.
+- **2️⃣ Energy Pulse:** Shoots lightning arcs and sparks radiating out of your fingertips that react to movement speed.
 - **3️⃣ Motion Ghost Trail:** Creates fading trails of past positions with smooth color shifting from violet to magenta.
 - **4️⃣ Particle Shower:** Spawns falling glowing particles from your fingertips with simulated gravity.
 - **5️⃣ Ripple Distortion:** Warps and bends the video feed like liquid ripples centered on your hands.
 - **6️⃣ Thermal Vision:** Displays an infrared heat map of the scene where your hands act as hot thermal points.
+- **7️⃣ Particle Orbit:** Concentric rings of glowing sparks that orbit around each hand center like gravitational fields.
+- **8️⃣ Digital Rain Aura:** Streams green binary and matrix code floating upwards from your hand joints.
 
 *For full details on the visual effects, see [FEATURES.md](file:///c:/Users/HF/Desktop/Hand%20Tricks/FEATURES.md).*
 
@@ -35,7 +37,7 @@ Configure and customize settings in real-time during execution using the followi
 
 | Command Key | Action | Details |
 | :--- | :--- | :--- |
-| **`0` - `6`** | Switch Effect | Select visual effect 0 through 6. |
+| **`0` - `8`** | Switch Effect | Select visual effect 0 through 8. |
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
 | **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality). |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (low-CPU blur), **Standard Glow**, and **Glow Off**. |
@@ -81,7 +83,7 @@ Ensure the virtual environment is activated and execute:
 python main.py
 ```
 
-Choose your camera index from the stylized dark launcher UI, and press **Q** on your keyboard to exit at any time.
+Choose your camera index from the launcher UI, and press **Q** on your keyboard to exit at any time.
 
 ---
 

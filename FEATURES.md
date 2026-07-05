@@ -4,24 +4,24 @@ This document describes all features, interactive keyboard controls, performance
 
 ---
 
-## 🎭 Interactive Visual Effects
+## 🎨 Interactive Visual Effects
 
-You can toggle between different eye-catching effects in real-time by pressing the corresponding number keys (`0` to `6`) on your keyboard.
+You can toggle between different eye-catching effects in real-time by pressing the corresponding number keys (`0` to `8`) on your keyboard.
 
 ### 0️⃣ Standard Glow (Classic Mode)
-* **Description:** Draws circular nodes on all 21 hand landmarks and connects matching fingertips of both hands with dynamic color lines. The color shifts smoothly between green, blue, and red depending on the relative physical distance between your hands.
-* **Aesthetic style:** Premium neon glow.
+* **Description:** Draws skeletal bones and circular joint nodes within each hand independently. The bones glow with a dynamic color that transitions smoothly from green, to blue, and then red, depending on the relative physical distance between your hands. No lines cross between the two hands.
+* **Aesthetic style:** Premium neon skeletal glow.
 
 ### 1️⃣ Inversion Portal (Negative Box)
-* **Description:** Detects the boundary of your hand and creates a rectangular portal framing it. Inside the bounding box, all image colors are inverted to their negative equivalents. The border of the box pulses dynamically with a high-contrast neon corner HUD styling.
+* **Description:** Detects the boundary of your hand and creates a rectangular portal framing it. Inside the bounding box, all image colors are inverted to their negative equivalents. The border of the box pulses dynamically with a high-contrast neon corner HUD styling. (Optimized with a minimum thickness safety floor to prevent rendering errors).
 * **Best use case:** High-contrast environments.
 
 ### 2️⃣ Energy Pulse (Lightning Core)
-* **Description:** Electric, jagged lightning bolts arc between your fingertips when both hands are visible. When only one hand is visible, sparks and mini-arcs discharge radially from your fingertips. The jaggedness, intensity, and length of the discharges dynamically scale with the speed of your hand movements.
+* **Description:** Jagged lightning-bolt arcs and electric sparks discharge radially from the fingertips of both hands. The jaggedness, intensity, and length of the discharges dynamically scale with the speed of your hand movements. All discharges are self-contained on each hand, meaning no lines connect the two hands.
 * **Best use case:** Fast and expressive hand waves.
 
 ### 3️⃣ Motion Ghost Trail (Afterimage)
-* **Description:** Your movements leave a fading trail of past frames behind them. Hand joints and fingertip connectors from prior positions fade out gracefully using an exponential decay opacity model. The trail shifts color (violet to pink) as it ages.
+* **Description:** Your movements leave a fading trail of past frames behind them. Hand joints and skeletal bone connectors from prior positions fade out gracefully using an exponential decay opacity model. The trail shifts color (violet to pink) as it ages.
 * **Best use case:** Slow, graceful hand motions.
 
 ### 4️⃣ Particle Shower (Magical Sparkles)
@@ -36,6 +36,24 @@ You can toggle between different eye-catching effects in real-time by pressing t
 * **Description:** Transforms the frame into a hot infrared thermal visualization using a colormap. The hand joints act as heat sources, making the hands glow white/yellow/red, while the background shifts to cold, darkened blue.
 * **Best use case:** Creating a sci-fi/high-tech radar aesthetic.
 
+### 7️⃣ Particle Orbit (Gravity Well) - *NEW*
+* **Description:** Creates concentric rings of glowing sparks that orbit around the center of each hand (MCP joint). The orbit speed and radius dynamically swell and contract based on the hand's speed. The hand center itself pulses with a glowing core.
+* **Best use case:** Slow circular motions or magical spell-casting poses.
+
+### 8️⃣ Digital Rain Aura (Matrix Proximity) - *NEW*
+* **Description:** Matrix-style streams of binary characters and alphanumeric code drift upwards from your hand joints. The characters scale down and dissolve as they ascend, wrapping your hands in a green digital aura.
+* **Best use case:** Futuristic digital display demos.
+
+---
+
+## 🦴 Isolated Hand Skeletal Connections
+
+A key aesthetic change has been applied: **the application no longer draws lines connecting your two hands together in any effect.** 
+Instead, each hand's structure is visualized internally using the standard 21 hand landmarks connected by a neon skeleton overlay:
+* Connects wrist to fingertips along all 5 digits.
+* Draws concentric circles around joints to emphasize articulation.
+* Helps distinguish hand movement features independently.
+
 ---
 
 ## 🛠️ Performance & Configuration Controls
@@ -44,6 +62,7 @@ To keep the application running smoothly on lightweight laptop setups (e.g., 4GB
 
 | Key | Action | Description |
 | :--- | :--- | :--- |
+| **`0` - `8`** | Switch Effect | Select visual effect 0 through 8. |
 | **`D`** | Toggle HUD | Shows or hides the diagnostic dashboard displaying real-time FPS, inference latency, rendering cost, and active resolution. |
 | **`R`** | Toggle Resolution | Switches capture resolution between **640x360** (Performance Mode) and **1280x720** (Quality Mode) on the fly. |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (blurs at 4x downsample, saving 70% CPU cycles), **Standard Glow** (direct heavy blur), and **Glow Off** (renders lines directly without blur). |

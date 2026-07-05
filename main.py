@@ -8,10 +8,21 @@ import time
 import tkinter as tk
 from tkinter import ttk
 import threading
+import random
 
 # Indices corresponding to MediaPipe Hand landmarks
 FINGER_TIPS = [4, 8, 12, 16, 20]     # THUMB_TIP, INDEX_FINGER_TIP, etc.
 FINGER_JOINTS = [3, 7, 11, 15, 19]   # THUMB_IP, INDEX_FINGER_DIP, etc.
+
+# Internal skeletal connections within a single hand
+HAND_CONNECTIONS = [
+    (0, 1), (1, 2), (2, 3), (3, 4),      # Thumb
+    (0, 5), (5, 6), (6, 7), (7, 8),      # Index
+    (5, 9), (9, 10), (10, 11), (11, 12), # Middle
+    (9, 13), (13, 14), (14, 15), (15, 16), # Ring
+    (13, 17), (17, 18), (18, 19), (19, 20), # Pinky
+    (0, 17)                              # Palm base
+]
 
 EFFECT_NAMES = {
     0: "Standard Glow",
@@ -20,7 +31,9 @@ EFFECT_NAMES = {
     3: "Motion Ghost Trail",
     4: "Particle Shower",
     5: "Ripple Distortion",
-    6: "Thermal Vision"
+    6: "Thermal Vision",
+    7: "Particle Orbit",
+    8: "Digital Rain Aura"
 }
 
 def choose_camera():
@@ -107,6 +120,8 @@ def get_dynamic_color(distance, max_distance=1000):
 def draw_hud_corners(img, pt1, pt2, color, thickness=2, length=15):
     x1, y1 = pt1
     x2, y2 = pt2
+    # Ensure thickness parameter is strictly greater than 0 to avoid OpenCV errors
+    thickness = max(1, thickness)
     # Top-left corner
     cv2.line(img, (x1, y1), (x1 + length, y1), color, thickness)
     cv2.line(img, (x1, y1), (x1, y1 + length), color, thickness)
@@ -152,7 +167,7 @@ def draw_lightning(img, pt1, pt2, color, thickness=1, segments=5, displace=12):
 
 class AppState:
     def __init__(self, w, h):
-        self.active_effect = 0  # 0 to 6
+        self.active_effect = 0  # 0 to 8
         self.show_hud = True
         self.w = w
         self.h = h
@@ -167,6 +182,12 @@ class AppState:
         
         # Particle System
         self.particles = []
+        
+        # Particle Orbit System
+        self.orbit_particles = []  # list of [angle, radius, speed, life, color_offset]
+        
+        # Digital Rain Aura Characters
+        self.digital_chars = []  # list of [x, y, char, speed, life, color_offset]
         
         # Ripple Distortion Pre-allocated Maps
         self.map_x = None
@@ -251,7 +272,7 @@ def main():
 
     with vision.HandLandmarker.create_from_options(options) as landmarker:
         print("Starting camera... Controls:")
-        print("  0-6 : Switch visual effects")
+        print("  0-8 : Switch visual effects")
         print("  R   : Toggle resolution (720p / 360p)")
         print("  B   : Toggle Glow Mode (Optimized / Standard / Off)")
         print("  D   : Toggle Diagnostic HUD")
@@ -280,6 +301,8 @@ def main():
                 canvas = np.zeros((frame_h, frame_w, 3), dtype=np.uint8)
                 state.ghost_buffer.clear()
                 state.particles.clear()
+                state.orbit_particles.clear()
+                state.digital_chars.clear()
             
             # Reuse canvas by clearing it in-place
             canvas.fill(0)
@@ -325,7 +348,8 @@ def main():
             
             # --- EFFECT 1: Inversion Portal (Negative Box) ---
             if state.active_effect == 1 and results.hand_landmarks:
-                pulse_thickness = int(2 + math.sin(time.time() * 10) * 1.5)
+                # Limit thickness bounds [1, 3] to avoid OpenCV assertions
+                pulse_thickness = max(1, int(2 + math.sin(time.time() * 10) * 1.2))
                 for hand in results.hand_landmarks:
                     # Bounding box of landmarks
                     xs = [lm.x * state.w for lm in hand]
@@ -344,41 +368,35 @@ def main():
 
             # --- EFFECT 2: Energy Pulse (Lightning) ---
             elif state.active_effect == 2 and results.hand_landmarks:
-                # Electric lightning lines
-                if num_detected == 2:
-                    hand1 = results.hand_landmarks[0]
-                    hand2 = results.hand_landmarks[1]
+                # Radial discharges from all visible hands' fingertips (NO lines between the hands)
+                for hand_idx, hand in enumerate(results.hand_landmarks):
+                    # Try to fetch current hand velocity
+                    vel = 0.0
+                    wx = int(hand[0].x * state.w)
+                    wy = int(hand[0].y * state.h)
+                    for prev_id, prev_loc in state.prev_wrists.items():
+                        dist = math.hypot(wx - prev_loc[0], wy - prev_loc[1])
+                        if dist < 180:
+                            vel = dist
+                            break
+                    
+                    # Number of discharges and displacement bounds scale with speed
+                    sparks_count = int(2 + min(vel * 0.2, 5))
+                    disp = int(6 + min(vel * 0.6, 20))
+                    
                     for tip_idx in FINGER_TIPS:
-                        h1_tip = (int(hand1[tip_idx].x * state.w), int(hand1[tip_idx].y * state.h))
-                        h2_tip = (int(hand2[tip_idx].x * state.w), int(hand2[tip_idx].y * state.h))
+                        tx = int(hand[tip_idx].x * state.w)
+                        ty = int(hand[tip_idx].y * state.h)
                         
-                        # Velocity influences jagged distortion and arcs
-                        vel = max(state.hand_velocities.values()) if state.hand_velocities else 0.0
-                        disp = int(8 + min(vel * 0.8, 30))
-                        
-                        # Glowing double stroke lightning
-                        draw_lightning(canvas, h1_tip, h2_tip, color=color, thickness=3, displace=disp)
-                        draw_lightning(canvas, h1_tip, h2_tip, color=(255, 255, 255), thickness=1, displace=disp)
-                else:
-                    # Radial discharges from index fingertips
-                    for hand_id, vel in state.hand_velocities.items():
-                        hand_idx = min(hand_id, num_detected - 1)
-                        if hand_idx >= 0:
-                            hand = results.hand_landmarks[hand_idx]
-                            for tip_idx in FINGER_TIPS:
-                                tx = int(hand[tip_idx].x * state.w)
-                                ty = int(hand[tip_idx].y * state.h)
-                                
-                                # Emitting lightning directions
-                                sparks_count = int(2 + min(vel * 0.2, 5))
-                                for s in range(sparks_count):
-                                    angle = np.random.uniform(0, 2 * math.pi)
-                                    length = int(15 + vel * np.random.uniform(1.0, 3.0))
-                                    end_x = int(tx + math.cos(angle) * length)
-                                    end_y = int(ty + math.sin(angle) * length)
-                                    
-                                    draw_lightning(canvas, (tx, ty), (end_x, end_y), color=color, thickness=2, displace=6)
-                                    draw_lightning(canvas, (tx, ty), (end_x, end_y), color=(255, 255, 255), thickness=1, displace=6)
+                        for s in range(sparks_count):
+                            angle = np.random.uniform(0, 2 * math.pi)
+                            length = int(18 + vel * np.random.uniform(0.8, 2.4))
+                            end_x = int(tx + math.cos(angle) * length)
+                            end_y = int(ty + math.sin(angle) * length)
+                            
+                            # Draw dual-stroke glowing arc radiating out
+                            draw_lightning(canvas, (tx, ty), (end_x, end_y), color=color, thickness=2, displace=disp)
+                            draw_lightning(canvas, (tx, ty), (end_x, end_y), color=(255, 255, 255), thickness=1, displace=disp)
 
             # --- EFFECT 3: Motion Ghost Trail ---
             elif state.active_effect == 3:
@@ -393,7 +411,7 @@ def main():
                     
                 state.ghost_buffer = state.ghost_buffer[-7:] # maintain history size
                 
-                # Render previous poses with fading alpha and cyan-purple gradient shift
+                # Render previous poses with fading alpha and gradient shift (Skeletal only, no inter-hand links)
                 ghost_canvas = np.zeros_like(canvas)
                 for age, frame_hands in enumerate(state.ghost_buffer[:-1]):
                     alpha = (age + 1) / len(state.ghost_buffer) * 0.5
@@ -401,10 +419,12 @@ def main():
                     
                     for hand in frame_hands:
                         for pt in hand:
-                            cv2.circle(ghost_canvas, pt, 5, ghost_color, -1)
-                        # Connect fingertips of ghost frames
-                        for t in range(len(FINGER_TIPS) - 1):
-                            cv2.line(ghost_canvas, hand[FINGER_TIPS[t]], hand[FINGER_TIPS[t+1]], ghost_color, 2, cv2.LINE_AA)
+                            cv2.circle(ghost_canvas, pt, 4, ghost_color, -1)
+                        # Connect ghost skeletal bones
+                        for start_idx, end_idx in HAND_CONNECTIONS:
+                            pt1 = hand[start_idx]
+                            pt2 = hand[end_idx]
+                            cv2.line(ghost_canvas, pt1, pt2, ghost_color, 2, cv2.LINE_AA)
                             
                 canvas = cv2.addWeighted(canvas, 1.0, ghost_canvas, 1.0, 0)
 
@@ -485,7 +505,7 @@ def main():
                 # Re-apply scale adjust to background as image just got warped
                 background = cv2.convertScaleAbs(image, alpha=0.3, beta=0)
 
-            # --- EFFECT 6: Thermal Heat Map ---
+            # --- EFFECT 6: Thermal Vision ---
             elif state.active_effect == 6 and results.hand_landmarks:
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 thermal = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
@@ -513,25 +533,120 @@ def main():
                 image = (bg_cool * (1.0 - mask_f_expanded) + thermal * mask_f_expanded).astype(np.uint8)
                 background = cv2.convertScaleAbs(image, alpha=0.3, beta=0)
 
-            # --- RENDER HAND JOINT OVERLAYS (Used for standard/overlay visualization) ---
+            # --- NEW EFFECT 7: Particle Orbit (Gravity Well) ---
+            elif state.active_effect == 7 and results.hand_landmarks:
+                # Draw central gravitational pulse at hand centers
+                for hand_idx, hand in enumerate(results.hand_landmarks):
+                    cx = int(hand[9].x * state.w)
+                    cy = int(hand[9].y * state.h)
+                    
+                    # Fetch velocity of the hand
+                    vel = 0.0
+                    for prev_id, prev_loc in state.prev_wrists.items():
+                        dist = math.hypot(cx - prev_loc[0], cy - prev_loc[1])
+                        if dist < 180:
+                            vel = dist
+                            break
+                            
+                    # Pulse glowing circles at the hand center
+                    pulse_r = int(12 + math.sin(time.time() * 12) * 5)
+                    cv2.circle(canvas, (cx, cy), pulse_r, color, 1, cv2.LINE_AA)
+                    cv2.circle(canvas, (cx, cy), pulse_r + 6, color, 2, cv2.LINE_AA)
+                    
+                    # Spawn orbiting particles around this center
+                    if len(state.orbit_particles) < 120:
+                        for _ in range(3):
+                            angle = np.random.uniform(0, 2 * math.pi)
+                            radius = np.random.uniform(25, 90)
+                            # Orbit speed scales up with hand speed
+                            speed = np.random.uniform(0.04, 0.12) + (vel * 0.003)
+                            # Randomize direction
+                            if np.random.rand() > 0.5:
+                                speed = -speed
+                            life = np.random.uniform(0.5, 1.0)
+                            color_offset = np.random.randint(-20, 20)
+                            state.orbit_particles.append([cx, cy, angle, radius, speed, life, color_offset])
+                
+                # Update and render orbiting particles
+                new_orbit_parts = []
+                for op in state.orbit_particles:
+                    cx, cy, o_angle, o_radius, o_speed, o_life, o_offset = op
+                    # Orbit rotation
+                    o_angle += o_speed
+                    o_life -= 0.02
+                    
+                    # Slowly spiral closer/further
+                    o_radius += math.sin(time.time() * 3) * 0.5
+                    
+                    px = int(cx + math.cos(o_angle) * o_radius)
+                    py = int(cy + math.sin(o_angle) * o_radius)
+                    
+                    if o_life > 0 and 0 <= px < state.w and 0 <= py < state.h:
+                        # Slight HSV color shift
+                        p_color = (max(0, min(255, color[0] + o_offset)),
+                                   max(0, min(255, color[1] + o_offset)),
+                                   max(0, min(255, color[2] + o_offset)))
+                        
+                        r = int(o_life * 5) + 1
+                        cv2.circle(canvas, (px, py), r, p_color, -1)
+                        # Orbit trail
+                        cv2.circle(canvas, (px, py), r + 2, (255, 255, 255), 1, cv2.LINE_AA)
+                        
+                        new_orbit_parts.append([cx, cy, o_angle, o_radius, o_speed, o_life, o_offset])
+                state.orbit_particles = new_orbit_parts[-150:]
+
+            # --- NEW EFFECT 8: Digital Rain Aura (Matrix Proximity) ---
+            elif state.active_effect == 8 and results.hand_landmarks:
+                # Generate green digital character structures radiating from hand landmarks
+                for hand in results.hand_landmarks:
+                    # Spawn characters at random joints
+                    if np.random.rand() > 0.25:
+                        joint_idx = np.random.randint(0, 21)
+                        jx = int(hand[joint_idx].x * state.w)
+                        jy = int(hand[joint_idx].y * state.h)
+                        
+                        # Generate random alphanumeric or binary character
+                        char = random.choice("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#@$%&*")
+                        speed = np.random.uniform(1.5, 4.0)
+                        life = np.random.uniform(0.6, 1.2)
+                        
+                        # Light green matrices with random green/cyan hues
+                        g_color = (np.random.randint(50, 100), np.random.randint(200, 255), np.random.randint(50, 150))
+                        state.digital_chars.append([jx, jy, char, speed, life, g_color])
+                
+                # Update, slide up, and draw the characters
+                new_chars = []
+                for dc in state.digital_chars:
+                    dx, dy, d_char, d_speed, d_life, d_color = dc
+                    dy -= d_speed  # Floating upwards
+                    d_life -= 0.03
+                    
+                    if d_life > 0 and dy > 0:
+                        # Character scale decays with life
+                        scale = d_life * 0.45
+                        # Render characters on canvas
+                        cv2.putText(canvas, d_char, (int(dx), int(dy)), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, scale, d_color, 1, cv2.LINE_AA)
+                        new_chars.append([dx, dy, d_char, d_speed, d_life, d_color])
+                state.digital_chars = new_chars[-120:]
+
+            # --- RENDER HAND JOINT OVERLAYS ---
+            # Render internal skeleton within each hand independently (No lines between the hands)
             if state.active_effect != 6: # Skip joint overlays in thermal view to keep look clean
                 if results.hand_landmarks:
-                    # Draw skeletal nodes
                     for hand in results.hand_landmarks:
+                        # Draw skeletal connecting bones internally
+                        for start_idx, end_idx in HAND_CONNECTIONS:
+                            pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
+                            pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
+                            cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+                            cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
+                        
+                        # Draw joint nodes
                         for landmark in hand:
                             x, y = int(landmark.x * state.w), int(landmark.y * state.h)
                             cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
-                            cv2.circle(canvas, (x, y), 6, color, 2)
-                    
-                    # Connect tips
-                    if num_detected == 2:
-                        hand1 = results.hand_landmarks[0]
-                        hand2 = results.hand_landmarks[1]
-                        for tip_idx in FINGER_TIPS:
-                            h1_tip = (int(hand1[tip_idx].x * state.w), int(hand1[tip_idx].y * state.h))
-                            h2_tip = (int(hand2[tip_idx].x * state.w), int(hand2[tip_idx].y * state.h))
-                            cv2.line(canvas, h1_tip, h2_tip, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
-                            cv2.line(canvas, h1_tip, h2_tip, color=color, thickness=2, lineType=cv2.LINE_AA)
+                            cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
             
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
@@ -556,7 +671,7 @@ def main():
 
             # --- DIAGNOSTIC HUD OVERLAY ---
             if state.show_hud:
-                # HUD background panel
+                # HUD background panel (Extended height slightly for 9 modes)
                 draw_semi_transparent_rect(final_image, (10, 10), (320, 160), (18, 18, 22), 0.75)
                 cv2.rectangle(final_image, (10, 10), (320, 160), (80, 80, 95), 1, cv2.LINE_AA)
                 
@@ -575,9 +690,9 @@ def main():
                 cv2.putText(final_image, f"Resolution: {state.w}x{state.h}", (20, 126), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 220, 240), 1, cv2.LINE_AA)
                 cv2.putText(final_image, f"Delegate: CPU (TFLite XNNPACK)", (20, 144), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 200, 150), 1, cv2.LINE_AA)
                 
-                # Bottom info instruction text bar
+                # Bottom info instruction text bar (Updated control hints)
                 draw_semi_transparent_rect(final_image, (0, final_image.shape[0] - 25), (final_image.shape[1], final_image.shape[0]), (10, 10, 12), 0.85)
-                cv2.putText(final_image, "Controls: [0-6] Effects | [R] Res | [B] Glow Mode | [D] HUD | [Q] Exit", 
+                cv2.putText(final_image, "Controls: [0-8] Effects | [R] Res | [B] Glow Mode | [D] HUD | [Q] Exit", 
                             (12, final_image.shape[0] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 210), 1, cv2.LINE_AA)
 
             cv2.imshow('MediaPipe Hand Tricks - Press Q to Exit', final_image)
@@ -598,7 +713,7 @@ def main():
                 # Flush camera queue buffer
                 for _ in range(3):
                     cap.read()
-            elif ord('0') <= key <= ord('6'):
+            elif ord('0') <= key <= ord('8'):
                 state.active_effect = key - ord('0')
 
             # Calculate FPS smoothly over intervals
