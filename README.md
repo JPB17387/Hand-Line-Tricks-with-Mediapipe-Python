@@ -26,8 +26,19 @@ The application supports multiple interactive, eye-catching hand effects that yo
 - **6️⃣ Thermal Vision:** Displays an infrared heat map of the scene where your hands act as hot thermal points.
 - **7️⃣ Particle Orbit:** Concentric rings of glowing sparks that orbit around each hand center like gravitational fields.
 - **8️⃣ Digital Rain Aura:** Streams green binary and matrix code floating upwards from your hand joints.
+- **9️⃣ Goku Power Core:** A flaming gold Super Saiyan aura rises from hand joints, forming a pulsing cyan Kamehameha energy ball when hands get close, backed by a synth charging sound.
 
 *For full details on the visual effects, see [FEATURES.md](file:///c:/Users/HF/Desktop/Hand%20Tricks/FEATURES.md).*
+
+---
+
+## 📷 Photo Capture & Video Recording
+
+The project has interactive buttons drawn at the top-right corner of the stream window:
+* Click the **Camera Icon** or press the **`C`** key to take a snapshot. Saves as a PNG image.
+* Click the **Record Dot** or press the **`V`** key to toggle video recording. Saves as an XVID AVI video.
+* All saved media is automatically created and stored inside the `captures/` folder in the project root.
+* Sound feedback (shutter beep, recording start/stop beeps) is played in the background when triggers occur.
 
 ---
 
@@ -37,10 +48,13 @@ Configure and customize settings in real-time during execution using the followi
 
 | Command Key | Action | Details |
 | :--- | :--- | :--- |
-| **`0` - `8`** | Switch Effect | Select visual effect 0 through 8. |
+| **`0` - `9`** | Switch Effect | Select visual effect 0 through 9. |
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
-| **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality). |
+| **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality) while safely restarting camera feeds. |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (low-CPU blur), **Standard Glow**, and **Glow Off**. |
+| **`F`** | Toggle Fullscreen | Maximizes the window to borderless fullscreen or scales back to windowed mode. |
+| **`C`** | Take Screenshot | Saves the current screen frame to the `captures/` directory. |
+| **`V`** | Toggle Video Record | Toggles AVI video recording to the `captures/` directory. |
 | **`Q`** | Quit / Exit | Closes all open windows and releases camera hardware resources. |
 
 ---
@@ -91,5 +105,6 @@ Choose your camera index from the launcher UI, and press **Q** on your keyboard 
 
 This project incorporates optimization techniques to run efficiently on low-spec hardware:
 1. **Video Mode Landmark Tracking:** Restricts full-frame object detection passes to avoid CPU bottlenecks.
-2. **Pre-allocated Frame Pools:** Cuts memory footprint and removes garbage collection stuttering.
+2. **Pre-allocated Frame Pools:** Cuts memory footprint and removes garbage collection stutters.
 3. **Downscaled Gaussian Blurring:** Calculates glows at a 4x lower resolution, achieving a **3.0x speedup** on blur pipelines.
+4. **Desktop Hardware Scaling:** Automatically scales the processed image to fill any fullscreen layout window, leveraging GPU window rendering instead of high-CPU capture resizing.
