@@ -59,6 +59,16 @@ Configure and customize settings in real-time during execution using the followi
 
 ---
 
+## ⚡ Quick Start (Get Running in 2 Minutes)
+
+**Windows:** Double-click `RUN.bat`
+
+**macOS/Linux:** Run `bash RUN.sh`
+
+**Or see [QUICK_START.md](QUICK_START.md) for detailed options.**
+
+---
+
 ## 🚀 Setup & Installation
 
 Follow these steps to get a copy of this project running on your local machine using an isolated virtual environment (`.venv`).
