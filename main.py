@@ -850,7 +850,7 @@ def main():
             if state.is_recording and state.video_writer:
                 state.video_writer.write(final_image)
                 # Draw minor REC indicator outside the HUD
-                cv2.putText(final_image, "● RECING", (state.w - 145, final_image.shape[0] - 38),
+                cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] - 38),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
 
             # --- PHOTO CAPTURE TRIGGER ---

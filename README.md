@@ -112,6 +112,18 @@ For detailed instructions on running this project in **VS Code**, **PyCharm**, *
 
 ---
 
+## 🐛 Recent Bug Fixes
+
+**Fixed in Latest Update:**
+- ✅ **Recording Indicator Typo** (Line 853, main.py)
+  - **Issue:** On-screen text displayed `"● RECING"` instead of `"● RECORDING"` during video capture
+  - **Fix:** Corrected text to `"● RECORDING"`
+  - **Impact:** Improved UI clarity during video recording
+
+For full changelog and version history, see [CHANGELOG.md](CHANGELOG.md).
+
+---
+
 ## ⚡ Hardware Optimizations
 
 This project incorporates optimization techniques to run efficiently on low-spec hardware:
@@ -119,3 +131,35 @@ This project incorporates optimization techniques to run efficiently on low-spec
 2. **Pre-allocated Frame Pools:** Cuts memory footprint and removes garbage collection stutters.
 3. **Downscaled Gaussian Blurring:** Calculates glows at a 4x lower resolution, achieving a **3.0x speedup** on blur pipelines.
 4. **Desktop Hardware Scaling:** Automatically scales the processed image to fill any fullscreen layout window, leveraging GPU window rendering instead of high-CPU capture resizing.
+
+---
+
+## 📚 Documentation
+
+The project includes comprehensive documentation for various aspects:
+
+| Document | Purpose |
+| :--- | :--- |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history, bug fixes, and feature releases |
+| **[CODE_STRUCTURE.md](CODE_STRUCTURE.md)** | Deep dive into code architecture, class/function reference, and performance optimizations |
+| **[DEVELOPMENT.md](DEVELOPMENT.md)** | Guide for developers: adding effects, code style, debugging, testing, and profiling |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues, solutions, and optimization tips |
+| **[FEATURES.md](readme/FEATURES.md)** | Detailed descriptions of all 10 visual effects |
+| **[IDE_SETUP_GUIDE.md](readme/IDE_SETUP_GUIDE.md)** | IDE-specific setup instructions (VS Code, PyCharm, Sublime, IDLE, Terminal) |
+
+---
+
+## 🎯 Quick Troubleshooting
+
+| Issue | Solution |
+| :--- | :--- |
+| **"ModuleNotFoundError: No module named 'mediapipe'"** | Activate virtual environment: `.\.venv\Scripts\Activate.ps1` (Windows) or `source .venv/bin/activate` (Unix) |
+| **Python 3.13+ installation fails** | MediaPipe only supports Python 3.8–3.12. Install Python 3.12 first. |
+| **Very low FPS (< 10 Hz)** | Press **R** for 360p, press **B** for Optimized Glow, press **D** to hide HUD |
+| **Hand detection not working** | Improve lighting, check hand_landmarker.task exists, adjust confidence thresholds in main.py |
+| **Videos won't play** | Ensure XVID codec installed (K-Lite Codec Pack on Windows) |
+| **No audio on Windows** | Check volume levels, unmute speaker, verify audio device enabled |
+
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+---
