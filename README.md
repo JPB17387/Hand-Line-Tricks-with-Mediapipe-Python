@@ -63,6 +63,8 @@ Configure and customize settings in real-time during execution using the followi
 
 Follow these steps to get a copy of this project running on your local machine using an isolated virtual environment (`.venv`).
 
+> ⚠️ **Python Version Requirement:** MediaPipe only supports **Python 3.8 – 3.12**. Python 3.13 and 3.14 will **not** work. If you don't have Python 3.12, install it via `winget install Python.Python.3.12` or download from [python.org](https://www.python.org/downloads/release/python-3129/).
+
 ### 1. Clone the Repository
 Copy the project to your local machine:
 ```bash
@@ -71,10 +73,13 @@ cd "Hand Tricks"
 ```
 
 ### 2. Create the Virtual Environment
-Create an isolated `.venv` space:
+Create an isolated `.venv` space using **Python 3.12**:
 ```bash
-# Windows
+# Windows (if Python 3.12 is your default)
 python -m venv .venv
+
+# Windows (if you have multiple Python versions, use full path)
+"C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python312\python.exe" -m venv .venv
 ```
 
 ### 3. Activate the Virtual Environment
@@ -84,6 +89,9 @@ python -m venv .venv
 
 # Windows (Command Prompt)
 .venv\Scripts\activate.bat
+
+# macOS / Linux
+source .venv/bin/activate
 ```
 
 ### 4. Install Dependencies
@@ -98,6 +106,9 @@ python main.py
 ```
 
 Choose your camera index from the launcher UI, and press **Q** on your keyboard to exit at any time.
+
+### 📖 IDE-Specific Instructions
+For detailed instructions on running this project in **VS Code**, **PyCharm**, **Sublime Text**, **IDLE**, or **terminal**, see the [IDE Setup Guide](readme/IDE_SETUP_GUIDE.md).
 
 ---
 
