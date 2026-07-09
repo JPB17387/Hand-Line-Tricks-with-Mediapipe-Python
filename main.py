@@ -1,8 +1,36 @@
-import cv2
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-import numpy as np
+import sys
+
+missing_packages = []
+try:
+    import cv2
+except ModuleNotFoundError:
+    cv2 = None
+    missing_packages.append('opencv-python')
+
+try:
+    import mediapipe as mp
+except ModuleNotFoundError:
+    mp = None
+    missing_packages.append('mediapipe')
+
+try:
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+except Exception:
+    python = None
+    vision = None
+    if mp is None:
+        pass
+    else:
+        print('Error importing MediaPipe tasks. Ensure MediaPipe is installed and compatible with your Python version.')
+        sys.exit(1)
+
+try:
+    import numpy as np
+except ModuleNotFoundError:
+    np = None
+    missing_packages.append('numpy')
+
 import math
 import time
 import tkinter as tk
@@ -10,7 +38,17 @@ from tkinter import ttk
 import threading
 import random
 import os
-import winsound
+
+try:
+    import winsound
+except ModuleNotFoundError:
+    winsound = None
+
+if missing_packages:
+    print('Missing required Python package(s):', ', '.join(missing_packages))
+    print('Install them using: pip install -r requirements.txt')
+    print('If using a virtual environment, activate it first and make sure the correct interpreter is selected.')
+    sys.exit(1)
 
 # Indices corresponding to MediaPipe Hand landmarks
 FINGER_TIPS = [4, 8, 12, 16, 20]     # THUMB_TIP, INDEX_FINGER_TIP, etc.

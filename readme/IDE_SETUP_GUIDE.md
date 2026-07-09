@@ -72,6 +72,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> **Note:** This installs `opencv-python`, `mediapipe`, and `numpy`.
+> If you see `ModuleNotFoundError: No module named 'cv2'`, make sure the venv is active and run the command again.
+
 ### Step 5: Verify Installation
 
 ```bash
@@ -120,6 +123,7 @@ Press `F5` to launch with the debugger using the included `launch.json` configur
 
 | Problem | Solution |
 |---|---|
+| `ModuleNotFoundError: No module named 'cv2'` | The virtual environment is not activated or dependencies are not installed. Activate `.venv` and run `pip install -r requirements.txt`. |
 | `ModuleNotFoundError: No module named 'mediapipe'` | Wrong interpreter selected. Press `Ctrl+Shift+P` → "Python: Select Interpreter" → pick the `.venv` one. |
 | `The term 'python' is not recognized` | Open a new terminal after selecting the interpreter. The old terminal may not have the venv activated. |
 | PowerShell says "running scripts is disabled" | Run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` |

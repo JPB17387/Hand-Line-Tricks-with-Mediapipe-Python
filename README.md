@@ -140,10 +140,10 @@ The project includes comprehensive documentation for various aspects:
 
 | Document | Purpose |
 | :--- | :--- |
-| **[CHANGELOG.md](CHANGELOG.md)** | Version history, bug fixes, and feature releases |
-| **[CODE_STRUCTURE.md](CODE_STRUCTURE.md)** | Deep dive into code architecture, class/function reference, and performance optimizations |
-| **[DEVELOPMENT.md](DEVELOPMENT.md)** | Guide for developers: adding effects, code style, debugging, testing, and profiling |
-| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues, solutions, and optimization tips |
+| **[CHANGELOG.md](readme/CHANGELOG.md)** | Version history, bug fixes, and feature releases |
+| **[CODE_STRUCTURE.md](readme/CODE_STRUCTURE.md)** | Deep dive into code architecture, class/function reference, and performance optimizations |
+| **[DEVELOPMENT.md](readme/DEVELOPMENT.md)** | Guide for developers: adding effects, code style, debugging, testing, and profiling |
+| **[TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md)** | Common issues, solutions, and optimization tips |
 | **[FEATURES.md](readme/FEATURES.md)** | Detailed descriptions of all 10 visual effects |
 | **[IDE_SETUP_GUIDE.md](readme/IDE_SETUP_GUIDE.md)** | IDE-specific setup instructions (VS Code, PyCharm, Sublime, IDLE, Terminal) |
 
@@ -160,6 +160,6 @@ The project includes comprehensive documentation for various aspects:
 | **Videos won't play** | Ensure XVID codec installed (K-Lite Codec Pack on Windows) |
 | **No audio on Windows** | Check volume levels, unmute speaker, verify audio device enabled |
 
-For more detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For more detailed troubleshooting, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md).
 
 ---
