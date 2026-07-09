@@ -28,7 +28,7 @@ The application supports multiple interactive, eye-catching hand effects that yo
 - **8️⃣ Digital Rain Aura:** Streams green binary and matrix code floating upwards from your hand joints.
 - **9️⃣ Goku Power Core:** A flaming gold Super Saiyan aura rises from hand joints, forming a pulsing cyan Kamehameha energy ball when hands get close, backed by a synth charging sound.
 
-*For full details on the visual effects, see [FEATURES.md](file:///c:/Users/HF/Desktop/Hand%20Tricks/FEATURES.md).*
+*For full details on the visual effects, see [FEATURES.md](readme/FEATURES.md).*
 
 ---
 
@@ -120,7 +120,7 @@ For detailed instructions on running this project in **VS Code**, **PyCharm**, *
   - **Fix:** Corrected text to `"● RECORDING"`
   - **Impact:** Improved UI clarity during video recording
 
-For full changelog and version history, see [CHANGELOG.md](CHANGELOG.md).
+For full changelog and version history, see [CHANGELOG.md](readme/CHANGELOG.md).
 
 ---
 
