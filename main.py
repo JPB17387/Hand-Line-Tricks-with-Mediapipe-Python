@@ -70,6 +70,9 @@ HAND_CONNECTIONS = [
     (0, 17)                              # Palm base
 ]
 
+# Palm-related landmark indices used to suppress palm lines when cube/zoom active
+PALM_INDICES = {0, 1, 5, 9, 13, 17}
+
 EFFECT_NAMES = {
     0: "Standard Glow",
     1: "Inversion Portal",
@@ -227,7 +230,11 @@ class AppState:
             'pos': (w//2, h//2),
             'size': max(40, min(w, h) // 6),
             'angle': 0.0,
-            'base_size': max(40, min(w, h) // 6)
+            'base_size': max(40, min(w, h) // 6),
+            'vel': {'x': 0.0, 'y': 0.0, 'rot_x': 0.0, 'rot_y': 0.0},
+            'damping': 0.90,
+            'snap_threshold': max(24, min(w, h) // 12),
+            'snap_speed': 0.18
         }
         self.prev_index_pos = None
         # Rotation angles (degrees) and scale multiplier
@@ -350,18 +357,34 @@ def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
     # draw faces: edges with gradient
     faces = [ (p1,p2,p3,p4), (q1,q2,q3,q4) ]
     # Draw base and top
-    cv2.polylines(canvas, [np.array(faces[0], np.int32)], True, (30,30,30), 2, cv2.LINE_AA)
-    cv2.polylines(canvas, [np.array(faces[1], np.int32)], True, (180,180,220), 2, cv2.LINE_AA)
-    # Connect edges
-    for pa, qa in zip(faces[0], faces[1]):
-        cv2.line(canvas, pa, qa, (150,140,200), 2, cv2.LINE_AA)
-    # fill with translucent color
+    # draw a soft shadow under the cube for depth
     try:
-        overlay = canvas.copy()
-        cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (color[0]//2, color[1]//2, color[2]//2))
-        cv2.addWeighted(overlay, 0.18, canvas, 0.82, 0, canvas)
+        shadow = canvas.copy()
+        sx = int(size * 0.9)
+        sy = int(size * 0.45)
+        cv2.ellipse(shadow, (cx, cy + int(size*0.6)), (sx, sy), 0, 0, 360, (10,10,10), -1)
+        cv2.GaussianBlur(shadow, (21,21), 0, dst=shadow)
+        cv2.addWeighted(shadow, 0.18, canvas, 0.82, 0, canvas)
     except Exception:
         pass
+
+    # face fill with gradient-like shading
+    try:
+        overlay = canvas.copy()
+        # darker base face
+        cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (int(color[0]*0.45), int(color[1]*0.45), int(color[2]*0.45)))
+        # lighter top face
+        cv2.fillPoly(overlay, [np.array(faces[1], np.int32)], (min(255,int(color[0]*0.9)), min(255,int(color[1]*0.9)), min(255,int(color[2]*0.9))))
+        cv2.addWeighted(overlay, 0.28, canvas, 0.72, 0, canvas)
+    except Exception:
+        pass
+
+    # outline edges with soft highlights
+    cv2.polylines(canvas, [np.array(faces[0], np.int32)], True, (40,40,45), 2, cv2.LINE_AA)
+    cv2.polylines(canvas, [np.array(faces[1], np.int32)], True, (210,210,230), 2, cv2.LINE_AA)
+    # Connect edges
+    for pa, qa in zip(faces[0], faces[1]):
+        cv2.line(canvas, pa, qa, (140,130,180), 2, cv2.LINE_AA)
 
 def _set_canvas_rotation(canvas, rot_x, rot_y):
     # attach small attributes so draw_cube can read them
@@ -919,11 +942,14 @@ def main():
                     for hand in results.hand_landmarks:
                         # Draw skeletal lines only if not hidden by user
                         if not state.hide_hand_lines:
-                            for start_idx, end_idx in HAND_CONNECTIONS:
-                                pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
-                                pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
-                                cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
-                                cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
+                                for start_idx, end_idx in HAND_CONNECTIONS:
+                                    # Optionally suppress palm lines when cube or zoom active
+                                    if (state.enable_cube or state.zoom_enabled) and (start_idx in PALM_INDICES or end_idx in PALM_INDICES):
+                                        continue
+                                    pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
+                                    pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
+                                    cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+                                    cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
                         
                         for landmark in hand:
                             x, y = int(landmark.x * state.w), int(landmark.y * state.h)
@@ -941,24 +967,37 @@ def main():
                         if state.grabbed:
                             ix = int(first_hand[8].x * state.w)
                             iy = int(first_hand[8].y * state.h)
-                            # update position
-                            state.cube['pos'] = (ix, iy)
-                            # rotation by index movement delta
+                            # update position and compute velocity for inertia
                             if state.prev_index_pos is not None:
                                 pdx = ix - state.prev_index_pos[0]
                                 pdy = iy - state.prev_index_pos[1]
+                                # set immediate velocities (pixels/frame)
+                                state.cube['vel']['x'] = pdx * 0.72
+                                state.cube['vel']['y'] = pdy * 0.72
+                                # rotation deltas
+                                state.cube['vel']['rot_y'] = pdx * 0.9
+                                state.cube['vel']['rot_x'] = pdy * 0.7
+                                # apply rotation
                                 state.cube['rot_y'] = (state.cube['rot_y'] + pdx * 0.6) % 360
                                 state.cube['rot_x'] = (state.cube['rot_x'] + pdy * 0.45) % 360
+                            state.cube['pos'] = (ix, iy)
                             state.prev_index_pos = (ix, iy)
                         else:
-                            # gently follow the palm
+                            # gently follow the palm and apply inertia
                             px, py = state.cube['pos']
                             nx = int(cx)
                             ny = int(cy)
-                            state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
-                            # slow auto rotation when not grabbed
-                            state.cube['rot_y'] = (state.cube['rot_y'] + 0.8) % 360
-                            state.cube['rot_x'] = (state.cube['rot_x'] * 0.98) % 360
+                            # inertial motion
+                            px = px + state.cube['vel']['x']
+                            py = py + state.cube['vel']['y']
+                            state.cube['pos'] = (int(px * 0.95 + nx * 0.05), int(py * 0.95 + ny * 0.05))
+                            # apply damping to velocities and rotation
+                            state.cube['vel']['x'] *= state.cube.get('damping', 0.90)
+                            state.cube['vel']['y'] *= state.cube.get('damping', 0.90)
+                            state.cube['vel']['rot_x'] *= state.cube.get('damping', 0.90)
+                            state.cube['vel']['rot_y'] *= state.cube.get('damping', 0.90)
+                            state.cube['rot_x'] = (state.cube['rot_x'] + state.cube['vel']['rot_x']) % 360
+                            state.cube['rot_y'] = (state.cube['rot_y'] + state.cube['vel']['rot_y']) % 360
                             state.prev_index_pos = None
 
                         # Two-hand scaling: if two hands present, scale cube smoothly by distance
@@ -978,6 +1017,20 @@ def main():
                             # apply manual scale multiplier
                             desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
                             state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
+
+                        # Snap-to-palm if close enough when not grabbed
+                        if not state.grabbed:
+                            px, py = state.cube['pos']
+                            dist_to_palm = math.hypot(px - cx, py - cy)
+                            if dist_to_palm < state.cube.get('snap_threshold', 40):
+                                # lerp toward palm
+                                sp = state.cube.get('snap_speed', 0.18)
+                                nxp = int(px * (1.0 - sp) + cx * sp)
+                                nyp = int(py * (1.0 - sp) + cy * sp)
+                                state.cube['pos'] = (nxp, nyp)
+                                # reduce velocities
+                                state.cube['vel']['x'] *= 0.6
+                                state.cube['vel']['y'] *= 0.6
 
                         # Draw the cube with rotation and current scale
                         _set_canvas_rotation(canvas, state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0))

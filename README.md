@@ -39,6 +39,13 @@ The application supports multiple interactive, eye-catching hand effects that yo
 
 These features are additive and do not remove or change the original visual effects — they provide additional interactivity and integration points.
 
+Notes on cube behavior:
+
+- The cube supports inertia: release a grabbed cube and it will coast and slowly stop.
+- Snap-to-palm brings the cube back when it nears your palm for easier control.
+- The cube has improved shading and a soft shadow for a more professional look.
+- When the cube or pinch zoom is active, palm skeletal lines are suppressed for a cleaner appearance.
+
 ---
 
 ## 📷 Photo Capture & Video Recording

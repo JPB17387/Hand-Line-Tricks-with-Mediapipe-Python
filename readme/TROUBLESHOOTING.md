@@ -3,6 +3,9 @@
 - If the WebSocket streamer fails to start, ensure `websockets` is installed (`pip install websockets`).
 - The faux 3D cube and pinch zoom are display-only features; recording still saves the full-resolution unzoomed frame.
 
+- If the cube seems to 'fly away' after release, that's inertia; it should slow and snap back when near the palm. You can reduce inertia by pressing `M` to toggle the cube off and on to reset state.
+- If palm lines disappear while cube/zoom active, this is intentional to provide a clean interaction surface.
+
 # 🔧 Troubleshooting Guide
 
 This guide helps you resolve common issues when running the **Hand Tricks** application.

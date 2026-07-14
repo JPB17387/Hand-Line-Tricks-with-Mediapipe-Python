@@ -4,6 +4,8 @@
 - Simple faux 3D cube overlay with pinch-to-grab manipulation.
 - Digital pinch zoom control to focus on hand interactions.
 
+Recent refinements: cube now includes inertia and snap-to-palm behavior, plus nicer shading and an optional palm-line suppression mode when cube/zoom are active.
+
 # 🎉 Project Analysis & Fix Summary
 
 **Project:** Hand Tricks - OpenCV Hand Tracking with MediaPipe  

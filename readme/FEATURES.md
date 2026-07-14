@@ -14,6 +14,13 @@ These additions extend the interactivity while keeping existing visual effects u
 	- Use `[` and `]` to rotate left/right (Y axis), and `;` / `'` to tilt up/down (X axis) via keyboard.
 	- Scale the cube with two-hand separation (move both hands apart to increase size) or use `=` and `-` keys to scale manually.
 
+Enhancements:
+
+- Inertia: when you release the cube after a grab it continues moving/rotating and decays naturally using damping.
+- Snap-to-palm: if the cube gets close to your palm it gently snaps back and stabilizes.
+- Nicer shading: the cube now renders a soft shadow and gradient faces for a more 3D look.
+- When the cube or pinch-zoom is active, the palm skeletal lines are suppressed to give a cleaner silhouette.
+
 
 # 🚀 Hand Tricks - Feature Documentation
 

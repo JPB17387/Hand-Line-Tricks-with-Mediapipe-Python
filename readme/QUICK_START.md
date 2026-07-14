@@ -5,6 +5,14 @@
 - `P` : Toggle pinch-to-zoom behavior.
 - `W` : Start lightweight WebSocket streamer on port 8765 for remote clients.
 
+Additional cube controls:
+
+- `[` / `]` : Rotate cube left/right (Y axis)
+- `;` / `'` : Tilt cube up/down (X axis)
+- `=` / `-` : Increase / decrease cube size
+
+When cube/zoom is active, palm skeletal lines are hidden for visual clarity.
+
 # 🚀 Quick Start Guide
 
 Get **Hand Tricks** running in less than 5 minutes!
