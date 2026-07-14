@@ -211,6 +211,17 @@ class AppState:
         self.h = h
         self.glow_mode = 0  # 0: Optimized, 1: Standard, 2: Off
         self.fullscreen = False
+        # New feature flags
+        self.hide_hand_lines = False  # If True, don't draw skeletal lines/outline
+        self.enable_cube = False      # Toggle faux 3D cube overlay
+        self.zoom_enabled = True      # Whether pinch zoom is active
+        self.zoom_factor = 1.0        # Current smooth zoom factor (1.0 = normal)
+        self.grabbed = False          # Whether object is grabbed by pinch
+        self.cube = {
+            'pos': (w//2, h//2),
+            'size': max(40, min(w, h) // 6),
+            'angle': 0.0
+        }
         
         # Velocity Tracking
         self.prev_wrists = {}  # {hand_idx: (x, y)}
@@ -298,6 +309,53 @@ def draw_semi_transparent_rect(img, pt1, pt2, color, alpha):
     rect[:] = color
     blend = cv2.addWeighted(sub_img, 1.0 - alpha, rect, alpha, 0)
     img[y1:y2, x1:x2] = blend
+
+def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
+    # Simple faux 3D cube drawn using projected offsets
+    cx, cy = center
+    s = int(size)
+    a = math.radians(angle_deg)
+    # base square
+    half = s // 2
+    p1 = (cx - half, cy - half)
+    p2 = (cx + half, cy - half)
+    p3 = (cx + half, cy + half)
+    p4 = (cx - half, cy + half)
+
+    # offset for top face (simulate 3D)
+    ox = int(math.cos(a) * half * 0.6)
+    oy = int(-math.sin(a) * half * 0.4) - int(half * 0.3)
+
+    q1 = (p1[0] + ox, p1[1] + oy)
+    q2 = (p2[0] + ox, p2[1] + oy)
+    q3 = (p3[0] + ox, p3[1] + oy)
+    q4 = (p4[0] + ox, p4[1] + oy)
+
+    # draw faces: edges with gradient
+    faces = [ (p1,p2,p3,p4), (q1,q2,q3,q4) ]
+    # Draw base and top
+    cv2.polylines(canvas, [np.array(faces[0], np.int32)], True, (30,30,30), 2, cv2.LINE_AA)
+    cv2.polylines(canvas, [np.array(faces[1], np.int32)], True, (180,180,220), 2, cv2.LINE_AA)
+    # Connect edges
+    for pa, qa in zip(faces[0], faces[1]):
+        cv2.line(canvas, pa, qa, (150,140,200), 2, cv2.LINE_AA)
+    # fill with translucent color
+    try:
+        overlay = canvas.copy()
+        cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (color[0]//2, color[1]//2, color[2]//2))
+        cv2.addWeighted(overlay, 0.18, canvas, 0.82, 0, canvas)
+    except Exception:
+        pass
+
+def pinch_distance(hand):
+    # Compute distance between thumb tip (4) and index tip (8) if available
+    if not hand:
+        return None
+    if len(hand) <= 8:
+        return None
+    x1, y1 = hand[4].x, hand[4].y
+    x2, y2 = hand[8].x, hand[8].y
+    return math.hypot(x1 - x2, y1 - y2)
 
 # Sound Synthesizer Functions (native, background-threaded)
 def play_beep_async(freq, duration):
