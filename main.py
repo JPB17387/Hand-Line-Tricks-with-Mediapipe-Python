@@ -937,54 +937,51 @@ def main():
                         cx = int(first_hand[ref_idx].x * state.w)
                         cy = int(first_hand[ref_idx].y * state.h)
 
-                            # If grabbed, update cube position to follow index fingertip and allow rotation by motion
-                            if state.grabbed:
-                                ix = int(first_hand[8].x * state.w)
-                                iy = int(first_hand[8].y * state.h)
-                                # update position
-                                state.cube['pos'] = (ix, iy)
-                                # rotation by index movement delta
-                                if state.prev_index_pos is not None:
-                                    pdx = ix - state.prev_index_pos[0]
-                                    pdy = iy - state.prev_index_pos[1]
-                                    state.cube['rot_y'] = (state.cube['rot_y'] + pdx * 0.6) % 360
-                                    state.cube['rot_x'] = (state.cube['rot_x'] + pdy * 0.45) % 360
-                                state.prev_index_pos = (ix, iy)
-                            else:
-                                # gently follow the palm
-                                px, py = state.cube['pos']
-                                nx = int(cx)
-                                ny = int(cy)
-                                state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
-                                # slow auto rotation when not grabbed
-                                state.cube['rot_y'] = (state.cube['rot_y'] + 0.8) % 360
-                                state.cube['rot_x'] = (state.cube['rot_x'] * 0.98) % 360
-                                state.prev_index_pos = None
+                        # If grabbed, update cube position to follow index fingertip and allow rotation by motion
+                        if state.grabbed:
+                            ix = int(first_hand[8].x * state.w)
+                            iy = int(first_hand[8].y * state.h)
+                            # update position
+                            state.cube['pos'] = (ix, iy)
+                            # rotation by index movement delta
+                            if state.prev_index_pos is not None:
+                                pdx = ix - state.prev_index_pos[0]
+                                pdy = iy - state.prev_index_pos[1]
+                                state.cube['rot_y'] = (state.cube['rot_y'] + pdx * 0.6) % 360
+                                state.cube['rot_x'] = (state.cube['rot_x'] + pdy * 0.45) % 360
+                            state.prev_index_pos = (ix, iy)
+                        else:
+                            # gently follow the palm
+                            px, py = state.cube['pos']
+                            nx = int(cx)
+                            ny = int(cy)
+                            state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
+                            # slow auto rotation when not grabbed
+                            state.cube['rot_y'] = (state.cube['rot_y'] + 0.8) % 360
+                            state.cube['rot_x'] = (state.cube['rot_x'] * 0.98) % 360
+                            state.prev_index_pos = None
 
-                            # Two-hand scaling: if two hands present, scale cube smoothly by distance
-                            if num_detected == 2:
-                                h1 = results.hand_landmarks[0]
-                                h2 = results.hand_landmarks[1]
-                                x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
-                                x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
-                                hands_dist = math.hypot(x2 - x1, y2 - y1)
-                                # map hand separation to scale factor around base size
-                                base = state.cube['base_size']
-                                target_size = int(max(24, min(state.w, state.h) * 0.6, base * (hands_dist / (state.w * 0.3))))
-                                # smooth resize
-                                cur = state.cube['size']
-                                state.cube['size'] = int(cur * 0.85 + target_size * 0.15)
-                            else:
-                                # apply manual scale multiplier
-                                desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
-                                state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
+                        # Two-hand scaling: if two hands present, scale cube smoothly by distance
+                        if num_detected == 2:
+                            h1 = results.hand_landmarks[0]
+                            h2 = results.hand_landmarks[1]
+                            x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
+                            x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
+                            hands_dist = math.hypot(x2 - x1, y2 - y1)
+                            # map hand separation to scale factor around base size
+                            base = state.cube['base_size']
+                            target_size = int(max(24, min(state.w, state.h) * 0.6, base * (hands_dist / (state.w * 0.3))))
+                            # smooth resize
+                            cur = state.cube['size']
+                            state.cube['size'] = int(cur * 0.85 + target_size * 0.15)
+                        else:
+                            # apply manual scale multiplier
+                            desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
+                            state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
 
-                            # Draw the cube with rotation and current scale
-                            _set_canvas_rotation(canvas, state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0))
-                            draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube.get('angle', 0.0))
-
-                        # Draw the cube
-                        draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube['angle'])
+                        # Draw the cube with rotation and current scale
+                        _set_canvas_rotation(canvas, state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0))
+                        draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube.get('angle', 0.0))
             
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
