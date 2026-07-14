@@ -7,6 +7,14 @@
 
 These additions extend the interactivity while keeping existing visual effects unchanged.
 
+### Cube Rotation & Scaling
+
+- While the faux 3D cube is enabled (`M`) you can:
+	- Grab it with a pinch gesture (thumb+index close) and move it with your fingertip. While grabbed, move your finger horizontally to rotate around the Y axis and vertically to rotate around the X axis for full 360° control.
+	- Use `[` and `]` to rotate left/right (Y axis), and `;` / `'` to tilt up/down (X axis) via keyboard.
+	- Scale the cube with two-hand separation (move both hands apart to increase size) or use `=` and `-` keys to scale manually.
+
+
 # 🚀 Hand Tricks - Feature Documentation
 
 This document describes all features, interactive keyboard controls, performance optimizations, and technical details of the **Hand Tricks** visual application.

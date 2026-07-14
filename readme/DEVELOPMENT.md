@@ -9,3 +9,9 @@ When developing or extending the project, note the following new interactive fea
 
 These are implemented in `main.py` and the lightweight server is `ws_server.py`.
 
+### Cube Interaction Implementation Notes
+
+- Rotation: Implemented by tracking the index fingertip delta while the cube is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`.
+- Scaling: Implemented two modes: two-hand distance driven automatic scaling, and manual keyboard scaling which modifies `cube['scale']` in the runtime state.
+
+

@@ -226,8 +226,14 @@ class AppState:
         self.cube = {
             'pos': (w//2, h//2),
             'size': max(40, min(w, h) // 6),
-            'angle': 0.0
+            'angle': 0.0,
+            'base_size': max(40, min(w, h) // 6)
         }
+        self.prev_index_pos = None
+        # Rotation angles (degrees) and scale multiplier
+        self.cube['rot_x'] = 0.0
+        self.cube['rot_y'] = 0.0
+        self.cube['scale'] = 1.0
         self.ws_running = False
         self.ws_port = 8765
         
@@ -323,6 +329,8 @@ def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
     cx, cy = center
     s = int(size)
     a = math.radians(angle_deg)
+    rx = math.radians(int(getattr(canvas, '_rot_x', 0))) if hasattr(canvas, '_rot_x') else 0
+    ry = math.radians(int(getattr(canvas, '_rot_y', 0))) if hasattr(canvas, '_rot_y') else 0
     # base square
     half = s // 2
     p1 = (cx - half, cy - half)
@@ -330,9 +338,9 @@ def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
     p3 = (cx + half, cy + half)
     p4 = (cx - half, cy + half)
 
-    # offset for top face (simulate 3D)
-    ox = int(math.cos(a) * half * 0.6)
-    oy = int(-math.sin(a) * half * 0.4) - int(half * 0.3)
+    # offset for top face (simulate 3D) influenced by rotation x/y
+    ox = int(math.cos(a + ry) * half * 0.6)
+    oy = int(-math.sin(a + rx) * half * 0.45) - int(half * 0.25)
 
     q1 = (p1[0] + ox, p1[1] + oy)
     q2 = (p2[0] + ox, p2[1] + oy)
@@ -352,6 +360,14 @@ def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
         overlay = canvas.copy()
         cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (color[0]//2, color[1]//2, color[2]//2))
         cv2.addWeighted(overlay, 0.18, canvas, 0.82, 0, canvas)
+    except Exception:
+        pass
+
+def _set_canvas_rotation(canvas, rot_x, rot_y):
+    # attach small attributes so draw_cube can read them
+    try:
+        setattr(canvas, '_rot_x', int(rot_x))
+        setattr(canvas, '_rot_y', int(rot_y))
     except Exception:
         pass
 
@@ -921,24 +937,51 @@ def main():
                         cx = int(first_hand[ref_idx].x * state.w)
                         cy = int(first_hand[ref_idx].y * state.h)
 
-                        # If grabbed, update cube position to follow index fingertip
-                        if state.grabbed:
-                            ix = int(first_hand[8].x * state.w)
-                            iy = int(first_hand[8].y * state.h)
-                            state.cube['pos'] = (ix, iy)
-                            # rotate based on vector between index and middle finger
-                            ang = math.degrees(math.atan2(
-                                first_hand[12].y - first_hand[8].y,
-                                first_hand[12].x - first_hand[8].x
-                            )) if len(first_hand) > 12 else state.cube['angle']
-                            state.cube['angle'] = (state.cube['angle'] * 0.8 + ang * 0.2) % 360
-                        else:
-                            # gently follow the palm
-                            px, py = state.cube['pos']
-                            nx = int(cx)
-                            ny = int(cy)
-                            state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
-                            state.cube['angle'] = (state.cube['angle'] + 1.2) % 360
+                            # If grabbed, update cube position to follow index fingertip and allow rotation by motion
+                            if state.grabbed:
+                                ix = int(first_hand[8].x * state.w)
+                                iy = int(first_hand[8].y * state.h)
+                                # update position
+                                state.cube['pos'] = (ix, iy)
+                                # rotation by index movement delta
+                                if state.prev_index_pos is not None:
+                                    pdx = ix - state.prev_index_pos[0]
+                                    pdy = iy - state.prev_index_pos[1]
+                                    state.cube['rot_y'] = (state.cube['rot_y'] + pdx * 0.6) % 360
+                                    state.cube['rot_x'] = (state.cube['rot_x'] + pdy * 0.45) % 360
+                                state.prev_index_pos = (ix, iy)
+                            else:
+                                # gently follow the palm
+                                px, py = state.cube['pos']
+                                nx = int(cx)
+                                ny = int(cy)
+                                state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
+                                # slow auto rotation when not grabbed
+                                state.cube['rot_y'] = (state.cube['rot_y'] + 0.8) % 360
+                                state.cube['rot_x'] = (state.cube['rot_x'] * 0.98) % 360
+                                state.prev_index_pos = None
+
+                            # Two-hand scaling: if two hands present, scale cube smoothly by distance
+                            if num_detected == 2:
+                                h1 = results.hand_landmarks[0]
+                                h2 = results.hand_landmarks[1]
+                                x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
+                                x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
+                                hands_dist = math.hypot(x2 - x1, y2 - y1)
+                                # map hand separation to scale factor around base size
+                                base = state.cube['base_size']
+                                target_size = int(max(24, min(state.w, state.h) * 0.6, base * (hands_dist / (state.w * 0.3))))
+                                # smooth resize
+                                cur = state.cube['size']
+                                state.cube['size'] = int(cur * 0.85 + target_size * 0.15)
+                            else:
+                                # apply manual scale multiplier
+                                desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
+                                state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
+
+                            # Draw the cube with rotation and current scale
+                            _set_canvas_rotation(canvas, state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0))
+                            draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube.get('angle', 0.0))
 
                         # Draw the cube
                         draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube['angle'])
@@ -1139,6 +1182,24 @@ def main():
                         state.set_notification("WebSocket server stopped")
                 else:
                     state.set_notification("WebSocket module unavailable")
+            elif key == ord('['):
+                # Rotate cube left around Y-axis
+                state.cube['rot_y'] = (state.cube['rot_y'] - 10) % 360
+            elif key == ord(']'):
+                # Rotate cube right around Y-axis
+                state.cube['rot_y'] = (state.cube['rot_y'] + 10) % 360
+            elif key == ord(';'):
+                # Rotate cube up around X-axis
+                state.cube['rot_x'] = (state.cube['rot_x'] - 10) % 360
+            elif key == ord('\''):
+                # Rotate cube down around X-axis
+                state.cube['rot_x'] = (state.cube['rot_x'] + 10) % 360
+            elif key == ord('='):
+                # manual scale up
+                state.cube['scale'] = min(4.0, state.cube.get('scale', 1.0) * 1.12)
+            elif key == ord('-'):
+                # manual scale down
+                state.cube['scale'] = max(0.3, state.cube.get('scale', 1.0) / 1.12)
             elif ord('0') <= key <= ord('9'):
                 state.active_effect = key - ord('0')
 
