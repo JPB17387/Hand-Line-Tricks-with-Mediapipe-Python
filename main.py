@@ -44,6 +44,12 @@ try:
 except ModuleNotFoundError:
     winsound = None
 
+# Optional WebSocket broadcaster for remote 3D control
+try:
+    import ws_server
+except Exception:
+    ws_server = None
+
 if missing_packages:
     print('Missing required Python package(s):', ', '.join(missing_packages))
     print('Install them using: pip install -r requirements.txt')
@@ -222,6 +228,8 @@ class AppState:
             'size': max(40, min(w, h) // 6),
             'angle': 0.0
         }
+        self.ws_running = False
+        self.ws_port = 8765
         
         # Velocity Tracking
         self.prev_wrists = {}  # {hand_idx: (x, y)}
@@ -504,6 +512,19 @@ def main():
             inference_start = time.perf_counter()
             results = landmarker.detect_for_video(mp_image, timestamp_ms)
             inference_time = (time.perf_counter() - inference_start) * 1000
+            # Publish landmarks to WebSocket broadcaster (if running)
+            try:
+                if ws_server is not None and state.ws_running:
+                    hands_data = []
+                    if results.hand_landmarks:
+                        for hand in results.hand_landmarks:
+                            hand_list = []
+                            for lm in hand:
+                                hand_list.append({'x': float(lm.x), 'y': float(lm.y), 'z': float(getattr(lm, 'z', 0.0))})
+                            hands_data.append(hand_list)
+                    ws_server.latest_landmarks = hands_data
+            except Exception:
+                pass
             
             # Hand tracking and velocity calculations
             num_detected = len(results.hand_landmarks) if results.hand_landmarks else 0
@@ -863,17 +884,64 @@ def main():
             # Render internal skeleton within each hand independently (No lines between the hands)
             if state.active_effect != 6: # Skip joint overlays in thermal view to keep look clean
                 if results.hand_landmarks:
+                    # Update pinch/zoom/grab logic per first hand
+                    first_hand = results.hand_landmarks[0] if len(results.hand_landmarks) > 0 else None
+                    pd = pinch_distance(first_hand) if first_hand is not None else None
+                    # Smooth zoom factor (use normalized landmark distances)
+                    if pd is not None and state.zoom_enabled:
+                        # pd is normalized (0..1) because landmarks are in normalized coords
+                        target_zoom = 1.0 + max(0.0, (0.25 - pd)) * 6.0
+                        # clamp
+                        target_zoom = max(1.0, min(3.0, target_zoom))
+                        state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
+                        # if very close, grab the cube
+                        if pd < 0.03:
+                            state.grabbed = True
+                        else:
+                            state.grabbed = False
+
                     for hand in results.hand_landmarks:
-                        for start_idx, end_idx in HAND_CONNECTIONS:
-                            pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
-                            pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
-                            cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
-                            cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
+                        # Draw skeletal lines only if not hidden by user
+                        if not state.hide_hand_lines:
+                            for start_idx, end_idx in HAND_CONNECTIONS:
+                                pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
+                                pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
+                                cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+                                cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
                         
                         for landmark in hand:
                             x, y = int(landmark.x * state.w), int(landmark.y * state.h)
                             cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
                             cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
+
+                    # Cube overlay and gesture manipulation
+                    if state.enable_cube and first_hand is not None:
+                        # Anchor cube to the wrist/palm (use landmark 0 or 9 if available)
+                        ref_idx = 9 if len(first_hand) > 9 else 0
+                        cx = int(first_hand[ref_idx].x * state.w)
+                        cy = int(first_hand[ref_idx].y * state.h)
+
+                        # If grabbed, update cube position to follow index fingertip
+                        if state.grabbed:
+                            ix = int(first_hand[8].x * state.w)
+                            iy = int(first_hand[8].y * state.h)
+                            state.cube['pos'] = (ix, iy)
+                            # rotate based on vector between index and middle finger
+                            ang = math.degrees(math.atan2(
+                                first_hand[12].y - first_hand[8].y,
+                                first_hand[12].x - first_hand[8].x
+                            )) if len(first_hand) > 12 else state.cube['angle']
+                            state.cube['angle'] = (state.cube['angle'] * 0.8 + ang * 0.2) % 360
+                        else:
+                            # gently follow the palm
+                            px, py = state.cube['pos']
+                            nx = int(cx)
+                            ny = int(cy)
+                            state.cube['pos'] = (int(px * 0.85 + nx * 0.15), int(py * 0.85 + ny * 0.15))
+                            state.cube['angle'] = (state.cube['angle'] + 1.2) % 360
+
+                        # Draw the cube
+                        draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube['angle'])
             
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
