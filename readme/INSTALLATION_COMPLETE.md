@@ -1,3 +1,7 @@
+### Post-install additions
+
+- Install `websockets` if you intend to use the remote landmark broadcaster: `pip install websockets`.
+
 # ✅ Installation Complete!
 
 **Date:** July 8, 2026  

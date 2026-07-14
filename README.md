@@ -30,6 +30,15 @@ The application supports multiple interactive, eye-catching hand effects that yo
 
 *For full details on the visual effects, see [FEATURES.md](readme/FEATURES.md).*
 
+## 🆕 New Interactive Features
+
+- `O` : Toggle hand outline/lines off/on (useful for a cleaner silhouette).
+- `M` : Toggle a faux 3D cube overlay anchored to your palm; use a pinch gesture to grab and move the cube.
+- `P` : Toggle pinch-to-zoom (digital zoom centered on hand/palm).
+- `W` : Start a simple WebSocket streamer on port 8765 to broadcast landmarks as JSON for remote 3D clients or devices.
+
+These features are additive and do not remove or change the original visual effects — they provide additional interactivity and integration points.
+
 ---
 
 ## 📷 Photo Capture & Video Recording

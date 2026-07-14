@@ -1044,8 +1044,24 @@ def main():
                     state.set_notification("Video Saved!")
                     play_rec_stop()
 
-            # Render output
-            cv2.imshow(window_name, final_image)
+            # Render output (apply digital pinch-zoom if active)
+            display_image = final_image
+            try:
+                if state.zoom_enabled and state.zoom_factor > 1.02:
+                    cx, cy = state.cube.get('pos', (state.w // 2, state.h // 2))
+                    crop_w = int(state.w / state.zoom_factor)
+                    crop_h = int(state.h / state.zoom_factor)
+                    x1 = max(0, int(cx - crop_w // 2))
+                    y1 = max(0, int(cy - crop_h // 2))
+                    x2 = min(state.w, x1 + crop_w)
+                    y2 = min(state.h, y1 + crop_h)
+                    crop = final_image[y1:y2, x1:x2]
+                    if crop.shape[0] > 0 and crop.shape[1] > 0:
+                        display_image = cv2.resize(crop, (state.w, state.h), interpolation=cv2.INTER_LINEAR)
+            except Exception:
+                display_image = final_image
+
+            cv2.imshow(window_name, display_image)
             
             # --- KEYBOARD CONTROLS PROCESSING ---
             key = cv2.waitKey(5) & 0xFF
@@ -1094,6 +1110,35 @@ def main():
                 state.goku_particles.clear()
                 
                 cv2.setMouseCallback(window_name, mouse_callback, state)
+            elif key == ord('o'):
+                # Toggle hand outline/lines
+                state.hide_hand_lines = not state.hide_hand_lines
+                state.set_notification(f"Hand Lines {'Hidden' if state.hide_hand_lines else 'Shown'}")
+            elif key == ord('m'):
+                # Toggle faux 3D cube overlay
+                state.enable_cube = not state.enable_cube
+                state.set_notification(f"3D Cube {'Enabled' if state.enable_cube else 'Disabled'}")
+            elif key == ord('p'):
+                # Toggle pinch zoom
+                state.zoom_enabled = not state.zoom_enabled
+                state.set_notification(f"Pinch Zoom {'Enabled' if state.zoom_enabled else 'Disabled'}")
+            elif key == ord('w'):
+                # Toggle websocket broadcaster
+                if ws_server is not None:
+                    if not state.ws_running:
+                        try:
+                            ws_server.start(host='0.0.0.0', port=state.ws_port)
+                            state.ws_running = True
+                            state.set_notification(f"WebSocket server started on :{state.ws_port}")
+                        except Exception as e:
+                            state.set_notification(f"WS start failed: {e}")
+                    else:
+                        # stopping is a no-op in simple server, flip flag
+                        state.ws_running = False
+                        ws_server.latest_landmarks = None
+                        state.set_notification("WebSocket server stopped")
+                else:
+                    state.set_notification("WebSocket module unavailable")
             elif ord('0') <= key <= ord('9'):
                 state.active_effect = key - ord('0')
 

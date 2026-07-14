@@ -1,3 +1,12 @@
+## New Features (Added)
+
+- Toggle hand outline visibility with the `O` key.
+- Enable a faux 3D cube overlay anchored to the palm with the `M` key; pinch to grab and move it.
+- Pinch-to-zoom (digital zoom) is enabled by default; toggle with the `P` key.
+- Start a lightweight WebSocket landmark broadcaster (ws://0.0.0.0:8765) with the `W` key.
+
+These additions extend the interactivity while keeping existing visual effects unchanged.
+
 # 🚀 Hand Tricks - Feature Documentation
 
 This document describes all features, interactive keyboard controls, performance optimizations, and technical details of the **Hand Tricks** visual application.

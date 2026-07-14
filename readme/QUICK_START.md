@@ -1,3 +1,10 @@
+### New Controls (Added)
+
+- `O` : Toggle hand outline/lines off/on.
+- `M` : Toggle faux 3D cube overlay (pinch to grab and move).
+- `P` : Toggle pinch-to-zoom behavior.
+- `W` : Start lightweight WebSocket streamer on port 8765 for remote clients.
+
 # 🚀 Quick Start Guide
 
 Get **Hand Tricks** running in less than 5 minutes!

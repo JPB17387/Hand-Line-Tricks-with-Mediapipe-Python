@@ -1,3 +1,8 @@
+## Notes on New Features
+
+- If the WebSocket streamer fails to start, ensure `websockets` is installed (`pip install websockets`).
+- The faux 3D cube and pinch zoom are display-only features; recording still saves the full-resolution unzoomed frame.
+
 # 🔧 Troubleshooting Guide
 
 This guide helps you resolve common issues when running the **Hand Tricks** application.

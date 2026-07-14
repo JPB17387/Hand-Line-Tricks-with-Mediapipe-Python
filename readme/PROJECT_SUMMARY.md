@@ -1,3 +1,9 @@
+### Recent Feature Summary
+
+- Real-time WebSocket landmark streaming added for remote rendering/control use-cases.
+- Simple faux 3D cube overlay with pinch-to-grab manipulation.
+- Digital pinch zoom control to focus on hand interactions.
+
 # 🎉 Project Analysis & Fix Summary
 
 **Project:** Hand Tricks - OpenCV Hand Tracking with MediaPipe  
