@@ -9,7 +9,7 @@
 
 ---
 
-## 🎉 What Was Done
+##  What Was Done
 
 ✅ **Error Fixed**
 - Fixed typo in recording indicator (line 853: "RECING" → "RECORDING")
@@ -34,7 +34,7 @@
 
 ---
 
-## 🚀 How to Launch
+## How to Launch
 
 ### Option 1: Windows (Easiest)
 
@@ -72,7 +72,7 @@ python main.py
 
 ---
 
-## 🎮 First Time Running
+##  First Time Running
 
 1. **Camera Selector appears** → Pick your camera (usually "Camera 0")
 2. **Video feed starts** → Hand detection begins automatically
@@ -88,7 +88,7 @@ python main.py
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 C:\Users\HF\Desktop\Hand Tricks\
@@ -127,7 +127,7 @@ C:\Users\HF\Desktop\Hand Tricks\
 
 ---
 
-## ✅ Verification Checklist
+## Verification Checklist
 
 - [x] Python 3.12 installed
 - [x] Virtual environment (`.venv`) created and configured
@@ -143,7 +143,7 @@ C:\Users\HF\Desktop\Hand Tricks\
 
 ---
 
-## 🎯 Common First-Time Questions
+## Common First-Time Questions
 
 **Q: Nothing happens when I double-click RUN.bat**
 A: Make sure you're in the correct folder. The file should be at: `C:\Users\HF\Desktop\Hand Tricks\RUN.bat`
@@ -164,7 +164,7 @@ For more questions, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md).
 
 ---
 
-## 📊 What's Installed
+## What's Installed
 
 | Component | Version | Status |
 | :--- | :--- | :--- |
@@ -180,7 +180,7 @@ For more questions, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md).
 
 ---
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### If you see "ModuleNotFoundError"
 
@@ -210,7 +210,7 @@ For complete troubleshooting, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md
 
 ---
 
-## 🎓 Learning Resources
+## Learning Resources
 
 - **[QUICK_START.md](QUICK_START.md)** – Get running in 2 minutes
 - **[README.md](README.md)** – Full project overview
@@ -222,7 +222,7 @@ For complete troubleshooting, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md
 
 ---
 
-## 🎬 Next Steps
+## Next Steps
 
 1. **Launch the app** → Double-click `RUN.bat` (Windows) or run `bash RUN.sh`
 2. **Select your camera** → Choose from the dialog
@@ -232,7 +232,7 @@ For complete troubleshooting, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md
 
 ---
 
-## 🌟 Features Overview
+## Features Overview
 
 The app includes:
 - **10 interactive visual effects** with real-time switching
@@ -246,7 +246,7 @@ The app includes:
 
 ---
 
-## ✨ What You Can Do
+## What You Can Do
 
 ✅ Real-time hand detection with 21 hand landmarks  
 ✅ Dynamic color-shifting based on hand distance  
@@ -260,7 +260,7 @@ The app includes:
 
 ---
 
-## 🏆 System Requirements Met
+## System Requirements Met
 
 ✅ Python 3.12  
 ✅ 200 MB free disk space  
@@ -270,7 +270,7 @@ The app includes:
 
 ---
 
-## 📞 Need Help?
+## Need Help?
 
 1. **First:** Check [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md)
 2. **Second:** Read [QUICK_START.md](QUICK_START.md)
@@ -279,7 +279,7 @@ The app includes:
 
 ---
 
-## 🎉 You're All Set!
+## You're All Set!
 
 **Your Hand Tricks application is fully configured and ready to use.**
 
