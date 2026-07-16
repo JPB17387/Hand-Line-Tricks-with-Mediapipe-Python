@@ -13,7 +13,7 @@ It is designed to run smoothly on systems with modest resources (e.g., 4GB RAM, 
 
 ---
 
-## ✨ Features & Visual Effects
+## Features & Visual Effects
 
 The application supports multiple interactive, eye-catching hand effects that you can switch between on-the-fly. **Note that in all effects, hands are visualized independently, with no lines or arcs connecting your two hands together.**
 
@@ -30,7 +30,7 @@ The application supports multiple interactive, eye-catching hand effects that yo
 
 *For full details on the visual effects, see [FEATURES.md](readme/FEATURES.md).*
 
-## 🆕 New Interactive Features
+## New Interactive Features
 
 - `O` : Toggle hand outline/lines off/on (useful for a cleaner silhouette).
 - `M` : Toggle a faux 3D cube overlay anchored to your palm; use a pinch gesture to grab and move the cube.
@@ -48,7 +48,7 @@ Notes on cube behavior:
 
 ---
 
-## 📷 Photo Capture & Video Recording
+## Photo Capture & Video Recording
 
 The project has interactive buttons drawn at the top-right corner of the stream window:
 * Click the **Camera Icon** or press the **`C`** key to take a snapshot. Saves as a PNG image.
@@ -58,7 +58,7 @@ The project has interactive buttons drawn at the top-right corner of the stream 
 
 ---
 
-## ⌨️ Live Keyboard Controls
+## Live Keyboard Controls
 
 Configure and customize settings in real-time during execution using the following key bindings:
 
@@ -75,7 +75,7 @@ Configure and customize settings in real-time during execution using the followi
 
 ---
 
-## ⚡ Quick Start (Get Running in 2 Minutes)
+## Quick Start (Get Running in 2 Minutes)
 
 **Windows:** Double-click `RUN.bat`
 
@@ -85,11 +85,11 @@ Configure and customize settings in real-time during execution using the followi
 
 ---
 
-## 🚀 Setup & Installation
+## Setup & Installation
 
 Follow these steps to get a copy of this project running on your local machine using an isolated virtual environment (`.venv`).
 
-> ⚠️ **Python Version Requirement:** MediaPipe only supports **Python 3.8 – 3.12**. Python 3.13 and 3.14 will **not** work. If you don't have Python 3.12, install it via `winget install Python.Python.3.12` or download from [python.org](https://www.python.org/downloads/release/python-3129/).
+> **Python Version Requirement:** MediaPipe only supports **Python 3.8 – 3.12**. Python 3.13 and 3.14 will **not** work. If you don't have Python 3.12, install it via `winget install Python.Python.3.12` or download from [python.org](https://www.python.org/downloads/release/python-3129/).
 
 ### 1. Clone the Repository
 Copy the project to your local machine:
@@ -133,15 +133,15 @@ python main.py
 
 Choose your camera index from the launcher UI, and press **Q** on your keyboard to exit at any time.
 
-### 📖 IDE-Specific Instructions
+### IDE-Specific Instructions
 For detailed instructions on running this project in **VS Code**, **PyCharm**, **Sublime Text**, **IDLE**, or **terminal**, see the [IDE Setup Guide](readme/IDE_SETUP_GUIDE.md).
 
 ---
 
-## 🐛 Recent Bug Fixes
+## Recent Bug Fixes
 
 **Fixed in Latest Update:**
-- ✅ **Recording Indicator Typo** (Line 853, main.py)
+  - **Recording Indicator Typo** (Line 853, main.py)
   - **Issue:** On-screen text displayed `"● RECING"` instead of `"● RECORDING"` during video capture
   - **Fix:** Corrected text to `"● RECORDING"`
   - **Impact:** Improved UI clarity during video recording
@@ -150,7 +150,7 @@ For full changelog and version history, see [CHANGELOG.md](readme/CHANGELOG.md).
 
 ---
 
-## ⚡ Hardware Optimizations
+## Hardware Optimizations
 
 This project incorporates optimization techniques to run efficiently on low-spec hardware:
 1. **Video Mode Landmark Tracking:** Restricts full-frame object detection passes to avoid CPU bottlenecks.
@@ -160,7 +160,7 @@ This project incorporates optimization techniques to run efficiently on low-spec
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 The project includes comprehensive documentation for various aspects:
 
@@ -175,7 +175,7 @@ The project includes comprehensive documentation for various aspects:
 
 ---
 
-## 🎯 Quick Troubleshooting
+## Quick Troubleshooting
 
 | Issue | Solution |
 | :--- | :--- |
