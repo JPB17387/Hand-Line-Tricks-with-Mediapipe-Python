@@ -19,4 +19,25 @@ These are implemented in `main.py` and the lightweight server is `ws_server.py`.
 - When the cube is released it preserves last motion/rotation velocity for a short time and decays using `cube['damping']`.
 - When the cube is close to the palm center it gently snaps toward the palm using `cube['snap_speed']` and reduces velocities.
 
+---
 
+
+## Buy me a coffee
+Donate some money to support my work.  <br>Thank you! :)
+<br>
+<br>
+
+>Click the button below to donate:
+
+<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
+</a>
+<br>
+<br>
+<br>
+
+>Or scan this QR Code to donate:
+
+<p align="center" >
+  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
+</p>

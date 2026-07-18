@@ -12,9 +12,9 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-## 🚨 Installation & Setup Issues
+##  Installation & Setup Issues
 
-### ❌ "ModuleNotFoundError: No module named 'mediapipe'"
+### "ModuleNotFoundError: No module named 'mediapipe'"
 
 **Cause:** The virtual environment is not activated, or MediaPipe was not installed.
 
@@ -43,7 +43,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ "ERROR: Failed to install mediapipe" (Python 3.13+)
+### "ERROR: Failed to install mediapipe" (Python 3.13+)
 
 **Cause:** MediaPipe only supports Python 3.8 – 3.12. Python 3.13 and 3.14 are not compatible.
 
@@ -66,7 +66,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ "No cameras found!"
+### "No cameras found!"
 
 **Cause:** The application cannot detect any camera devices.
 
@@ -79,9 +79,9 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-## 🎥 Camera & Detection Issues
+## Camera & Detection Issues
 
-### ❌ Application freezes after camera selection
+### Application freezes after camera selection
 
 **Cause:** Camera initialization is slow, or the camera is incompatible.
 
@@ -94,7 +94,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ Hand detection not working or very unreliable
+### Hand detection not working or very unreliable
 
 **Cause:** Poor lighting, low resolution, or MediaPipe model not loading.
 
@@ -124,7 +124,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ FPS is very low (< 10 FPS)
+### FPS is very low (< 10 FPS)
 
 **Cause:** Hardware too slow, resolution too high, or glow mode expensive.
 
@@ -153,9 +153,9 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-## 🎬 Photo & Video Capture Issues
+## Photo & Video Capture Issues
 
-### ❌ Photos save but can't be opened
+### Photos save but can't be opened
 
 **Cause:** The `captures/` folder may not exist, or the image file is corrupted.
 
@@ -179,7 +179,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ Video recording stops abruptly or produces unplayable files
+### Video recording stops abruptly or produces unplayable files
 
 **Cause:** Insufficient disk space, codec issues, or camera resolution changed during recording.
 
@@ -207,9 +207,9 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-## 🔊 Audio Issues
+## Audio Issues
 
-### ❌ No sound during capture/recording on Windows
+### No sound during capture/recording on Windows
 
 **Cause:** Winsound module disabled or audio device muted.
 
@@ -223,7 +223,7 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
 
 ---
 
-### ❌ No sound on macOS/Linux
+### No sound on macOS/Linux
 
 **Cause:** The `winsound` module is Windows-only.
 
@@ -232,9 +232,9 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-## 🖱️ Input & Controls Issues
+## Input & Controls Issues
 
-### ❌ Keyboard controls not responding
+### Keyboard controls not responding
 
 **Cause:** The OpenCV window may not be in focus, or key events are buffered.
 
@@ -245,7 +245,7 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-### ❌ Mouse clicks on buttons don't register
+### Mouse clicks on buttons don't register
 
 **Cause:** Button coordinates may not align with actual screen positions due to window scaling.
 
@@ -262,9 +262,9 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-## 💾 File & Path Issues
+## File & Path Issues
 
-### ❌ "FileNotFoundError: hand_landmarker.task"
+### "FileNotFoundError: hand_landmarker.task"
 
 **Cause:** The MediaPipe model file is missing.
 
@@ -286,7 +286,7 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-### ❌ "PermissionError" when saving photos/videos
+### "PermissionError" when saving photos/videos
 
 **Cause:** The `captures/` folder lacks write permissions.
 
@@ -305,7 +305,7 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-## 🌐 Performance Optimization Tips
+## Performance Optimization Tips
 
 ### For Low-End Hardware (4GB RAM, i5 2nd gen, integrated graphics)
 
@@ -324,7 +324,7 @@ This is expected behavior. The sound effects are wrapped in try/except blocks an
 
 ---
 
-## 📞 Getting More Help
+## Getting More Help
 
 If none of these solutions work:
 
@@ -342,7 +342,7 @@ For persistent issues, provide:
 
 ---
 
-## 🎓 Understanding Performance
+## Understanding Performance
 
 The application uses several optimization techniques:
 
@@ -352,3 +352,25 @@ The application uses several optimization techniques:
 - **Temporal Hand Tracking:** Smooth velocity calculations without visual jitter
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed performance metrics.
+
+---
+
+## Buy me a coffee
+Donate some money to support my work.  <br>Thank you! :)
+<br>
+<br>
+
+>Click the button below to donate:
+
+<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
+</a>
+<br>
+<br>
+<br>
+
+>Or scan this QR Code to donate:
+
+<p align="center" >
+  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
+</p>

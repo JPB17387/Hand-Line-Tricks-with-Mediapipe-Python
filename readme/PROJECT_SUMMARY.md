@@ -6,7 +6,7 @@
 
 Recent refinements: cube now includes inertia and snap-to-palm behavior, plus nicer shading and an optional palm-line suppression mode when cube/zoom are active.
 
-# 🎉 Project Analysis & Fix Summary
+# Project Analysis & Fix Summary
 
 **Project:** Hand Tricks - OpenCV Hand Tracking with MediaPipe  
 **Analysis Date:** 2026-07-08  
@@ -133,7 +133,7 @@ cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] -
 
 ---
 
-## 📊 Documentation Coverage
+## Documentation Coverage
 
 | Aspect | Document | Coverage |
 | :--- | :--- | :--- |
@@ -148,7 +148,7 @@ cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] -
 
 ---
 
-## ✨ What's Documented
+## What's Documented
 
 ### Code Structure
 - ✅ 50+ function descriptions with signatures
@@ -190,7 +190,7 @@ cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] -
 
 ---
 
-## 🎯 Quality Metrics
+## Quality Metrics
 
 ### Code Quality
 - **Syntax Verification:** ✅ Passed (py_compile)
@@ -207,7 +207,7 @@ cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] -
 
 ---
 
-## 🚀 Pre-Launch Verification
+## Pre-Launch Verification
 
 ### Checklist
 - ✅ Error identified and fixed
@@ -256,7 +256,7 @@ Total:             10 files modified/created
 
 ---
 
-## 📞 Next Steps (Optional)
+## Next Steps (Optional)
 
 ### For Users
 1. Run the application and verify the fix: press **V** to record, check "RECORDING" text
@@ -311,3 +311,26 @@ Total:             10 files modified/created
 ---
 
 *Analysis completed successfully. All files have been created, updated, and verified.*
+
+---
+
+
+## Buy me a coffee
+Donate some money to support my work.  <br>Thank you! :)
+<br>
+<br>
+
+>Click the button below to donate:
+
+<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
+</a>
+<br>
+<br>
+<br>
+
+>Or scan this QR Code to donate:
+
+<p align="center" >
+  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
+</p>

@@ -13,7 +13,7 @@ Additional cube controls:
 
 When cube/zoom is active, palm skeletal lines are hidden for visual clarity.
 
-# 🚀 Quick Start Guide
+# Quick Start Guide
 
 Get **Hand Tricks** running in less than 5 minutes!
 
@@ -28,7 +28,7 @@ Get **Hand Tricks** running in less than 5 minutes!
 
 ---
 
-## 🎯 Option 1: Run with Script (Easiest)
+## Option 1: Run with Script (Easiest)
 
 ### Windows
 
@@ -50,7 +50,7 @@ bash RUN.sh
 
 ---
 
-## 🎯 Option 2: Command Line (Manual)
+## Option 2: Command Line (Manual)
 
 ### Windows (PowerShell)
 
@@ -78,7 +78,7 @@ python main.py
 
 ---
 
-## 🎯 Option 3: Run in IDE (VS Code / PyCharm)
+## Option 3: Run in IDE (VS Code / PyCharm)
 
 ### VS Code
 1. Open the `Hand Tricks` folder
@@ -94,7 +94,7 @@ python main.py
 
 ---
 
-## 🎮 First Launch
+## First Launch
 
 When you run the app:
 
@@ -113,7 +113,7 @@ When you run the app:
 
 ---
 
-## ⚙️ Setup Verification
+## Setup Verification
 
 If you see **"Missing required Python packages..."**, run this:
 
@@ -129,7 +129,7 @@ python -c "import cv2, mediapipe, numpy; print('All dependencies OK!')"
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 | Problem | Solution |
 | :--- | :--- |
@@ -143,7 +143,7 @@ For more help, see **[TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md)**.
 
 ---
 
-## 📚 What to Read Next
+## What to Read Next
 
 - **[README.md](README.md)** – Full project overview
 - **[FEATURES.md](readme/FEATURES.md)** – All 10 visual effects explained
@@ -152,8 +152,31 @@ For more help, see **[TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md)**.
 
 ---
 
-## 🎉 Ready to Go!
+## Ready to Go!
 
 Your Hand Tricks application is ready to run. Choose an option above and launch!
 
 **Enjoy the effects!** 🚀
+
+---
+
+
+## Buy me a coffee
+Donate some money to support my work.  <br>Thank you! :)
+<br>
+<br>
+
+>Click the button below to donate:
+
+<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
+</a>
+<br>
+<br>
+<br>
+
+>Or scan this QR Code to donate:
+
+<p align="center" >
+  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
+</p>
