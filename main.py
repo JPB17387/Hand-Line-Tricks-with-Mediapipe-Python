@@ -956,7 +956,7 @@ def main():
                             cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
                             cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
 
-                    # Cube overlay and gesture manipulation
+                    # Interactive 3D object manipulation
                     if state.enable_cube and first_hand is not None:
                         # Anchor cube to the wrist/palm (use landmark 0 or 9 if available)
                         ref_idx = 9 if len(first_hand) > 9 else 0
@@ -1032,9 +1032,13 @@ def main():
                                 state.cube['vel']['x'] *= 0.6
                                 state.cube['vel']['y'] *= 0.6
 
-                        # Draw the cube with rotation and current scale
-                        _set_canvas_rotation(canvas, state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0))
-                        draw_cube(canvas, state.cube['pos'], state.cube['size'], state.cube.get('angle', 0.0))
+                        # Render the selected mesh using its true X/Y rotation state.
+                        draw_3d_object(canvas, state.cube['pos'], state.cube['size'],
+                                       state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
+                                       state.object_names[state.object_index])
+                        cv2.putText(canvas, state.object_names[state.object_index].upper(),
+                                    (state.cube['pos'][0] - 42, state.cube['pos'][1] - state.cube['size'] // 2 - 16),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (220, 255, 255), 1, cv2.LINE_AA)
             
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
@@ -1208,9 +1212,12 @@ def main():
                 state.hide_hand_lines = not state.hide_hand_lines
                 state.set_notification(f"Hand Lines {'Hidden' if state.hide_hand_lines else 'Shown'}")
             elif key == ord('m'):
-                # Toggle faux 3D cube overlay
+                # Toggle interactive 3D object overlay
                 state.enable_cube = not state.enable_cube
-                state.set_notification(f"3D Cube {'Enabled' if state.enable_cube else 'Disabled'}")
+                state.set_notification(f"3D {state.object_names[state.object_index]} {'Enabled' if state.enable_cube else 'Disabled'}")
+            elif key == ord('n'):
+                state.object_index = (state.object_index + 1) % len(state.object_names)
+                state.set_notification(f"3D object: {state.object_names[state.object_index]}")
             elif key == ord('p'):
                 # Toggle pinch zoom
                 state.zoom_enabled = not state.zoom_enabled
