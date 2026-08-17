@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Replaced the faux cube renderer with selectable local perspective meshes: Cube, Globe, Human, Car, Plane, Building, and Satellite (`N`).
+- Kept pinch grabbing, continuous X/Y rotation, inertia, keyboard rotation, and two-hand/manual scaling.
 - Added interactive toggles: hide hand outlines (`O`), faux 3D cube overlay (`M`), pinch zoom toggle (`P`).
 - Added `ws_server.py` for broadcasting landmarks to remote clients; start/stop with `W` key.
 - Updated documentation to include new features and usage notes.

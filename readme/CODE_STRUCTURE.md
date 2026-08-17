@@ -1,7 +1,7 @@
 ### Recent Additions
 
 - `ws_server.py` — Simple WebSocket broadcaster that streams latest hand landmarks as JSON to connected clients. Useful for offloading rendering/control to remote 3D renderers or devices.
-- New UI toggles and state in `main.py` for hiding hand outlines, enabling a faux 3D cube, and pinch-based digital zoom.
+- `main.py` contains UI/state for hand outlines, selectable interactive 3D meshes, and pinch-based digital zoom. `mesh_for_object()` and `draw_3d_object()` implement the local mesh pipeline.
 
 Refinements:
 

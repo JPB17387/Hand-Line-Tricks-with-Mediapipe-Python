@@ -1,7 +1,7 @@
 ### New Controls (Added)
 
 - `O` : Toggle hand outline/lines off/on.
-- `M` : Toggle faux 3D cube overlay (pinch to grab and move).
+- `M` : Toggle interactive 3D overlay; `N` cycles Cube, Globe, Human, Car, Plane, Building, and Satellite.
 - `P` : Toggle pinch-to-zoom behavior.
 - `W` : Start lightweight WebSocket streamer on port 8765 for remote clients.
 

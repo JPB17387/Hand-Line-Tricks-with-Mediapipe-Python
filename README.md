@@ -33,18 +33,19 @@ The application supports multiple interactive, eye-catching hand effects that yo
 ## New Interactive Features
 
 - `O` : Toggle hand outline/lines off/on (useful for a cleaner silhouette).
-- `M` : Toggle a faux 3D cube overlay anchored to your palm; use a pinch gesture to grab and move the cube.
+- `M` : Toggle the interactive 3D overlay.
+- `N` : Select the next 3D object: Cube, Globe, Human, Car, Plane, Building, or Satellite.
 - `P` : Toggle pinch-to-zoom (digital zoom centered on hand/palm).
 - `W` : Start a simple WebSocket streamer on port 8765 to broadcast landmarks as JSON for remote 3D clients or devices.
 
 These features are additive and do not remove or change the original visual effects — they provide additional interactivity and integration points.
 
-Notes on cube behavior:
+Notes on 3D-object behavior:
 
-- The cube supports inertia: release a grabbed cube and it will coast and slowly stop.
-- Snap-to-palm brings the cube back when it nears your palm for easier control.
-- The cube has improved shading and a soft shadow for a more professional look.
-- When the cube or pinch zoom is active, palm skeletal lines are suppressed for a cleaner appearance.
+- Pinch thumb and index finger together to grab; move sideways to rotate on Y and up/down to rotate on X through a full 360°.
+- Spread or bring two detected hands together to scale the selected object. `=` and `-` also scale it.
+- Release to retain a small amount of inertial movement; objects gently return toward the palm when nearby.
+- `[` / `]` rotate Y and `;` / `'` rotate X for keyboard control.
 
 ---
 
@@ -68,6 +69,7 @@ Configure and customize settings in real-time during execution using the followi
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
 | **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality) while safely restarting camera feeds. |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (low-CPU blur), **Standard Glow**, and **Glow Off**. |
+| **`M` / `N`** | 3D overlay / next object | Shows the interactive object and cycles its seven available meshes. |
 | **`F`** | Toggle Fullscreen | Maximizes the window to borderless fullscreen or scales back to windowed mode. |
 | **`C`** | Take Screenshot | Saves the current screen frame to the `captures/` directory. |
 | **`V`** | Toggle Video Record | Toggles AVI video recording to the `captures/` directory. |

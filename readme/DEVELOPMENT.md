@@ -3,15 +3,16 @@
 When developing or extending the project, note the following new interactive features:
 
 - `O`: Toggle hand outline/lines rendering.
-- `M`: Toggle the faux 3D cube overlay (palm anchored). Pinch to grab and move.
+- `M`: Toggle the interactive 3D overlay; `N` cycles the bundled mesh set. Pinch to grab and move.
 - `P`: Toggle pinch zoom behavior.
 - `W`: Start/stop the WebSocket landmark broadcaster for remote clients.
 
 These are implemented in `main.py` and the lightweight server is `ws_server.py`.
 
-### Cube Interaction Implementation Notes
+### 3D Interaction Implementation Notes
 
-- Rotation: Implemented by tracking the index fingertip delta while the cube is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`.
+- `mesh_for_object()` supplies the dependency-free meshes; `draw_3d_object()` rotates, perspective-projects, depth-sorts, and shades them.
+- Rotation tracks the index fingertip delta while an object is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`.
 - Scaling: Implemented two modes: two-hand distance driven automatic scaling, and manual keyboard scaling which modifies `cube['scale']` in the runtime state.
 
 ### Inertia & Snapping

@@ -1,22 +1,22 @@
 ## New Features (Added)
 
 - Toggle hand outline visibility with the `O` key.
-- Enable a faux 3D cube overlay anchored to the palm with the `M` key; pinch to grab and move it.
+- Enable the interactive 3D overlay with `M`; use `N` to select Cube, Globe, Human, Car, Plane, Building, or Satellite.
 - Pinch-to-zoom (digital zoom) is enabled by default; toggle with the `P` key.
 - Start a lightweight WebSocket landmark broadcaster (ws://0.0.0.0:8765) with the `W` key.
 
 These additions extend the interactivity while keeping existing visual effects unchanged.
 
-### Cube Rotation & Scaling
+### 3D Object Rotation & Scaling
 
-- While the faux 3D cube is enabled (`M`) you can:
+- While the overlay is enabled (`M`) you can select an object with `N`, pinch thumb and index finger together to grab it, and move horizontally for Y rotation or vertically for X rotation with continuous 360° control.
 	- Grab it with a pinch gesture (thumb+index close) and move it with your fingertip. While grabbed, move your finger horizontally to rotate around the Y axis and vertically to rotate around the X axis for full 360° control.
 	- Use `[` and `]` to rotate left/right (Y axis), and `;` / `'` to tilt up/down (X axis) via keyboard.
 	- Scale the cube with two-hand separation (move both hands apart to increase size) or use `=` and `-` keys to scale manually.
 
 Enhancements:
 
-- Inertia: when you release the cube after a grab it continues moving/rotating and decays naturally using damping.
+- Inertia: when you release an object after a grab it continues moving/rotating and decays naturally using damping.
 - Snap-to-palm: if the cube gets close to your palm it gently snaps back and stabilizes.
 - Nicer shading: the cube now renders a soft shadow and gradient faces for a more 3D look.
 - When the cube or pinch-zoom is active, the palm skeletal lines are suppressed to give a cleaner silhouette.
