@@ -222,7 +222,9 @@ class AppState:
         self.fullscreen = False
         # New feature flags
         self.hide_hand_lines = False  # If True, don't draw skeletal lines/outline
-        self.enable_cube = False      # Toggle faux 3D cube overlay
+        self.enable_cube = False      # Toggle the interactive 3D object overlay
+        self.object_index = 0
+        self.object_names = ['Cube', 'Globe', 'Human', 'Car', 'Plane', 'Building', 'Satellite']
         self.zoom_enabled = True      # Whether pinch zoom is active
         self.zoom_factor = 1.0        # Current smooth zoom factor (1.0 = normal)
         self.grabbed = False          # Whether object is grabbed by pinch
@@ -331,68 +333,66 @@ def draw_semi_transparent_rect(img, pt1, pt2, color, alpha):
     blend = cv2.addWeighted(sub_img, 1.0 - alpha, rect, alpha, 0)
     img[y1:y2, x1:x2] = blend
 
-def draw_cube(canvas, center, size, angle_deg, color=(200,180,255)):
-    # Simple faux 3D cube drawn using projected offsets
-    cx, cy = center
-    s = int(size)
-    a = math.radians(angle_deg)
-    rx = math.radians(int(getattr(canvas, '_rot_x', 0))) if hasattr(canvas, '_rot_x') else 0
-    ry = math.radians(int(getattr(canvas, '_rot_y', 0))) if hasattr(canvas, '_rot_y') else 0
-    # base square
-    half = s // 2
-    p1 = (cx - half, cy - half)
-    p2 = (cx + half, cy - half)
-    p3 = (cx + half, cy + half)
-    p4 = (cx - half, cy + half)
+def mesh_for_object(name):
+    """Return a small, dependency-free mesh centered on the origin."""
+    if name == 'Globe':
+        vertices, faces = [], []
+        rings, segments = 8, 14
+        for r in range(rings + 1):
+            phi = -math.pi / 2 + math.pi * r / rings
+            for s in range(segments):
+                theta = 2 * math.pi * s / segments
+                vertices.append((math.cos(phi) * math.cos(theta), math.sin(phi), math.cos(phi) * math.sin(theta)))
+        for r in range(rings):
+            for s in range(segments):
+                a, b = r * segments + s, r * segments + (s + 1) % segments
+                faces.append((a, b, b + segments, a + segments))
+        return vertices, faces, (255, 205, 70)
+    if name == 'Human':
+        # A clean holographic stick figure reads more clearly than a dense mesh at webcam scale.
+        v = [(0,1.15,0), (0,.55,0), (0,-.35,0), (-.55,.62,0), (.55,.62,0), (-.38,-1.0,0), (.38,-1.0,0)]
+        return v, [(0,1), (1,2), (1,3), (1,4), (2,5), (2,6)], (255, 130, 60)
+    if name == 'Plane':
+        v = [(0,0,1.25), (-.22,0,-1), (.22,0,-1), (-1.35,0,0), (1.35,0,0), (0,.42,-.65), (0,-.42,-.65)]
+        return v, [(0,3,4), (0,4,2), (0,1,3), (0,2,1), (1,5,6)], (90, 220, 255)
+    if name == 'Car':
+        v = [(-1,-.38,.65),(1,-.38,.65),(1,-.38,-.65),(-1,-.38,-.65),(-1,.2,.65),(1,.2,.65),(1,.2,-.65),(-1,.2,-.65),(-.48,.68,.38),(.48,.68,.38),(.48,.68,-.32),(-.48,.68,-.32)]
+        f = [(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,9,8),(5,6,10,9),(6,7,11,10),(7,4,8,11),(8,9,10,11)]
+        return v, f, (80, 90, 255)
+    if name == 'Building':
+        v = [(-.75,-1,-.75),(.75,-1,-.75),(.75,-1,.75),(-.75,-1,.75),(-.75,1,-.75),(.75,1,-.75),(.75,1,.75),(-.75,1,.75),(0,1.55,0)]
+        return v, [(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,8),(5,6,8),(6,7,8),(7,4,8)], (130, 255, 110)
+    if name == 'Satellite':
+        v = [(0,0,0),(-.35,0,0),(.35,0,0),(-1.35,0,0),(-.35,0,0),(.35,0,0),(1.35,0,0),(0,.65,0),(0,-.65,0)]
+        return v, [(0,1),(0,2),(3,4),(5,6),(0,7),(0,8)], (230, 160, 255)
+    # Cube is the default.
+    v = [(-1,-1,-1),(1,-1,-1),(1,1,-1),(-1,1,-1),(-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1)]
+    return v, [(0,1,2,3),(4,7,6,5),(0,4,5,1),(3,2,6,7),(1,5,6,2),(0,3,7,4)], (210, 180, 255)
 
-    # offset for top face (simulate 3D) influenced by rotation x/y
-    ox = int(math.cos(a + ry) * half * 0.6)
-    oy = int(-math.sin(a + rx) * half * 0.45) - int(half * 0.25)
-
-    q1 = (p1[0] + ox, p1[1] + oy)
-    q2 = (p2[0] + ox, p2[1] + oy)
-    q3 = (p3[0] + ox, p3[1] + oy)
-    q4 = (p4[0] + ox, p4[1] + oy)
-
-    # draw faces: edges with gradient
-    faces = [ (p1,p2,p3,p4), (q1,q2,q3,q4) ]
-    # Draw base and top
-    # draw a soft shadow under the cube for depth
-    try:
-        shadow = canvas.copy()
-        sx = int(size * 0.9)
-        sy = int(size * 0.45)
-        cv2.ellipse(shadow, (cx, cy + int(size*0.6)), (sx, sy), 0, 0, 360, (10,10,10), -1)
-        cv2.GaussianBlur(shadow, (21,21), 0, dst=shadow)
-        cv2.addWeighted(shadow, 0.18, canvas, 0.82, 0, canvas)
-    except Exception:
-        pass
-
-    # face fill with gradient-like shading
-    try:
-        overlay = canvas.copy()
-        # darker base face
-        cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (int(color[0]*0.45), int(color[1]*0.45), int(color[2]*0.45)))
-        # lighter top face
-        cv2.fillPoly(overlay, [np.array(faces[1], np.int32)], (min(255,int(color[0]*0.9)), min(255,int(color[1]*0.9)), min(255,int(color[2]*0.9))))
-        cv2.addWeighted(overlay, 0.28, canvas, 0.72, 0, canvas)
-    except Exception:
-        pass
-
-    # outline edges with soft highlights
-    cv2.polylines(canvas, [np.array(faces[0], np.int32)], True, (40,40,45), 2, cv2.LINE_AA)
-    cv2.polylines(canvas, [np.array(faces[1], np.int32)], True, (210,210,230), 2, cv2.LINE_AA)
-    # Connect edges
-    for pa, qa in zip(faces[0], faces[1]):
-        cv2.line(canvas, pa, qa, (140,130,180), 2, cv2.LINE_AA)
-
-def _set_canvas_rotation(canvas, rot_x, rot_y):
-    # attach small attributes so draw_cube can read them
-    try:
-        setattr(canvas, '_rot_x', int(rot_x))
-        setattr(canvas, '_rot_y', int(rot_y))
-    except Exception:
-        pass
+def draw_3d_object(canvas, center, size, rot_x, rot_y, name):
+    vertices, faces, color = mesh_for_object(name)
+    rx, ry = math.radians(rot_x), math.radians(rot_y)
+    projected, depths = [], []
+    for x, y, z in vertices:
+        y, z = y * math.cos(rx) - z * math.sin(rx), y * math.sin(rx) + z * math.cos(rx)
+        x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
+        perspective = 3.8 / (3.8 + z)
+        projected.append((int(center[0] + x * size * .52 * perspective), int(center[1] - y * size * .52 * perspective)))
+        depths.append(z)
+    overlay = canvas.copy()
+    for face in sorted(faces, key=lambda f: sum(depths[i] for i in f) / len(f)):
+        pts = np.array([projected[i] for i in face], np.int32)
+        if len(face) == 2:  # figure/satellite line mesh
+            cv2.line(overlay, tuple(pts[0]), tuple(pts[1]), color, 3, cv2.LINE_AA)
+        else:
+            shade = .38 + .45 * max(0, min(1, (sum(depths[i] for i in face) / len(face) + 1.5) / 3))
+            fill = tuple(int(c * shade) for c in color)
+            cv2.fillPoly(overlay, [pts], fill)
+            cv2.polylines(overlay, [pts], True, color, 1, cv2.LINE_AA)
+    cv2.addWeighted(overlay, .72, canvas, .28, 0, canvas)
+    if name == 'Human':
+        head = projected[0]
+        cv2.circle(canvas, head, max(5, int(size * .13)), color, 2, cv2.LINE_AA)
 
 def pinch_distance(hand):
     # Compute distance between thumb tip (4) and index tip (8) if available
