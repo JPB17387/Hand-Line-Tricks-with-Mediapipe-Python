@@ -927,17 +927,16 @@ def main():
                     first_hand = results.hand_landmarks[0] if len(results.hand_landmarks) > 0 else None
                     pd = pinch_distance(first_hand) if first_hand is not None else None
                     # Smooth zoom factor (use normalized landmark distances)
-                    if pd is not None and state.zoom_enabled:
-                        # pd is normalized (0..1) because landmarks are in normalized coords
-                        target_zoom = 1.0 + max(0.0, (0.25 - pd)) * 6.0
-                        # clamp
-                        target_zoom = max(1.0, min(3.0, target_zoom))
-                        state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
-                        # if very close, grab the cube
-                        if pd < 0.03:
-                            state.grabbed = True
-                        else:
-                            state.grabbed = False
+                    if pd is not None:
+                        # Grabbing is deliberately independent from display zoom, so P never
+                        # disables the 3D controls.  A close thumb/index pinch is the grab.
+                        state.grabbed = pd < 0.035
+                        if state.zoom_enabled:
+                            # pd is normalized (0..1) because landmarks are in normalized coords
+                            target_zoom = max(1.0, min(3.0, 1.0 + max(0.0, (0.25 - pd)) * 6.0))
+                            state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
+                    else:
+                        state.grabbed = False
 
                     for hand in results.hand_landmarks:
                         # Draw skeletal lines only if not hidden by user
