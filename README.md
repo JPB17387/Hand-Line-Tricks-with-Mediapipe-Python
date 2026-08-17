@@ -5,7 +5,7 @@
       <p><font color="#A0AEC0">Dynamic real-time hand tracking visualizer and effects engine built with Python and MediaPipe.</font></p>
     </td>
   </tr>
-</table>
+</table> 
 
 This is a Python-based real-time hand-tracking visualization tool that focuses on smooth, aesthetic visuals and hardware-optimized performance. It utilizes MediaPipe and OpenCV to capture hand landmarks and renders interactive visual effects driven by your movements.
 
