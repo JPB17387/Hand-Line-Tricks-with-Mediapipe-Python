@@ -3,22 +3,24 @@
 When developing or extending the project, note the following new interactive features:
 
 - `O`: Toggle hand outline/lines rendering.
-- `M`: Toggle the interactive 3D overlay; `N` cycles the bundled mesh set. Pinch to grab and move.
+- `M`: Toggle the holographic 3D object overlay (palm anchored). Pinch to grab, rotate 360 on X/Y, and zoom in/out.
+- `N`: Cycle the active hologram object (`Shift+N` for the previous). See `hologram3d.MODEL_ORDER`.
 - `P`: Toggle pinch zoom behavior.
 - `W`: Start/stop the WebSocket landmark broadcaster for remote clients.
 
-These are implemented in `main.py` and the lightweight server is `ws_server.py`.
+These are implemented in `main.py` (gesture/state handling and rendering call-out) and `hologram3d.py` (the 3D model builders, rotation math, projection, and wireframe renderer); the lightweight server is `ws_server.py`.
 
-### 3D Interaction Implementation Notes
+### Hologram Interaction Implementation Notes
 
-- `mesh_for_object()` supplies the dependency-free meshes; `draw_3d_object()` rotates, perspective-projects, depth-sorts, and shades them.
-- Rotation tracks the index fingertip delta while an object is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`.
-- Scaling: Implemented two modes: two-hand distance driven automatic scaling, and manual keyboard scaling which modifies `cube['scale']` in the runtime state.
+- Rotation: Implemented by tracking the index fingertip delta while the hologram is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`. Both are stored **unbounded** (not wrapped to 0-360) in `AppState.cube['rot_x'] / ['rot_y']`, so the object can keep spinning continuously past a full turn on either axis.
+- Zoom: Implemented three ways, all feeding `cube['scale']` / `cube['size']`: (1) single-hand pull-to-zoom, which compares the current on-screen span of the grabbing hand (wrist to middle-fingertip) against `AppState.holo_grab_span` from the previous frame; (2) two-hand distance driven automatic scaling; (3) manual keyboard (`=`/`-`) and mouse scroll-wheel scaling via `mouse_callback()`.
+- Rendering: `draw_hologram_object()` in `main.py` calls `hologram3d.render_hologram()`, which rotates the model's vertices with `rotate_xy()`, projects them with `project()`, and draws depth-shaded wireframe edges + glowing vertex nodes onto the canvas.
+- Adding a new object: write a `make_x()` builder in `hologram3d.py` returning `(vertices, edges)` (or `(vertices, edges, extra)`), then register it in `_BUILDERS`, `MODEL_ORDER`, `MODEL_LABELS`, and `MODEL_COLORS`. No changes to `main.py` are required.
 
 ### Inertia & Snapping
 
-- When the cube is released it preserves last motion/rotation velocity for a short time and decays using `cube['damping']`.
-- When the cube is close to the palm center it gently snaps toward the palm using `cube['snap_speed']` and reduces velocities.
+- When the hologram is released it preserves last motion/rotation velocity for a short time and decays using `cube['damping']`.
+- When the hologram is close to the palm center it gently snaps toward the palm using `cube['snap_speed']` and reduces velocities.
 
 ---
 

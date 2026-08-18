@@ -1,17 +1,18 @@
 ### New Controls (Added)
 
 - `O` : Toggle hand outline/lines off/on.
-- `M` : Toggle interactive 3D overlay; `N` cycles Cube, Globe, Human, Car, Plane, Building, and Satellite.
+- `M` : Toggle the holographic 3D object overlay (pinch to grab, rotate 360 on X/Y, zoom in/out).
+- `N` : Cycle to the next 3D object (`Shift+N` for the previous). Objects: Cube, Globe, Human, Car, Plane, Building, Pyramid, Atom.
 - `P` : Toggle pinch-to-zoom behavior.
 - `W` : Start lightweight WebSocket streamer on port 8765 for remote clients.
 
-Additional cube controls:
+Additional hologram controls:
 
-- `[` / `]` : Rotate cube left/right (Y axis)
-- `;` / `'` : Tilt cube up/down (X axis)
-- `=` / `-` : Increase / decrease cube size
+- `[` / `]` : Rotate hologram left/right (Y axis)
+- `;` / `'` : Tilt hologram up/down (X axis)
+- `=` / `-` : Zoom hologram in/out (mouse scroll-wheel also works)
 
-When cube/zoom is active, palm skeletal lines are hidden for visual clarity.
+When the hologram/zoom is active, palm skeletal lines are hidden for visual clarity.
 
 # Quick Start Guide
 

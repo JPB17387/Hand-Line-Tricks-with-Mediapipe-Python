@@ -1,10 +1,10 @@
 ### Recent Feature Summary
 
 - Real-time WebSocket landmark streaming added for remote rendering/control use-cases.
-- Simple faux 3D cube overlay with pinch-to-grab manipulation.
+- Holographic 3D object engine (`hologram3d.py`): 8 selectable objects (Cube, Globe, Human, Car, Plane, Building, Pyramid, Atom) with real rotation-matrix + perspective-projection rendering, grab/rotate/zoom via hand gestures.
 - Digital pinch zoom control to focus on hand interactions.
 
-Recent refinements: cube now includes inertia and snap-to-palm behavior, plus nicer shading and an optional palm-line suppression mode when cube/zoom are active.
+Recent refinements: the hologram now supports unbounded 360-degree rotation on X and Y simultaneously, single-hand pull-to-zoom (in addition to two-hand pinch-spread zoom), inertia and snap-to-palm behavior, depth-shaded wireframe rendering, and an optional palm-line suppression mode when the hologram/zoom is active.
 
 # Project Analysis & Fix Summary
 

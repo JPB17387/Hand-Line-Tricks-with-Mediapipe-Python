@@ -1,8 +1,8 @@
 ### Recent Enhancements
 
-- Interactive toggles for outline hiding, selectable 3D meshes, pinch zoom, and a WebSocket broadcaster. See `main.py` and `ws_server.py` for implementation details.
+- Interactive toggles for outline hiding, the holographic 3D object overlay (`M`, cycle objects with `N`), pinch zoom, and a WebSocket broadcaster. See `main.py`, `hologram3d.py`, and `ws_server.py` for implementation details.
 
-- Cube refinements: inertia/damping, snap-to-palm, improved shading. See `readme/DEVELOPMENT.md` for implementation notes.
+- Hologram refinements: 8 objects, unbounded 360-degree X/Y rotation, single-hand pull-to-zoom, two-hand pinch-spread zoom, inertia/damping, snap-to-palm, depth-shaded wireframe rendering. See `readme/DEVELOPMENT.md` for implementation notes.
 
 ---
 

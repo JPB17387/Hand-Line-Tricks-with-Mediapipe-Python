@@ -1,10 +1,11 @@
 ## Notes on New Features
 
 - If the WebSocket streamer fails to start, ensure `websockets` is installed (`pip install websockets`).
-- The faux 3D cube and pinch zoom are display-only features; recording still saves the full-resolution unzoomed frame.
-
-- If the cube seems to 'fly away' after release, that's inertia; it should slow and snap back when near the palm. You can reduce inertia by pressing `M` to toggle the cube off and on to reset state.
-- If palm lines disappear while cube/zoom active, this is intentional to provide a clean interaction surface.
+- The 3D hologram overlay and pinch zoom are display-only features; recording still saves the full-resolution unzoomed frame.
+- If the hologram seems to 'fly away' after release, that's inertia; it should slow and snap back when near the palm. You can reduce inertia by pressing `M` to toggle the hologram off and on to reset state.
+- If palm lines disappear while the hologram/zoom is active, this is intentional to provide a clean interaction surface.
+- If pressing `N` doesn't change the object, make sure the hologram is enabled first (`M`) and that `hologram3d.py` sits next to `main.py` — if it fails to import, the app silently falls back to a simple faux cube and object cycling has nothing to cycle through.
+- If the hologram looks flat or doesn't seem to rotate in 3D, confirm you're grabbing it with a clear pinch (thumb + index finger tips close together) — rotation is driven by fingertip movement while grabbed.
 
 # 🔧 Troubleshooting Guide
 

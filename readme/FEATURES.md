@@ -1,25 +1,45 @@
 ## New Features (Added)
 
 - Toggle hand outline visibility with the `O` key.
-- Enable the interactive 3D overlay with `M`; use `N` to select Cube, Globe, Human, Car, Plane, Building, or Satellite.
+- Summon a **holographic 3D object** anchored to the palm with the `M` key; pinch to grab it, rotate it 360° on both axes, and zoom it in/out (see below).
+- Cycle through the 3D object library with the `N` key (`Shift+N` to go backwards).
 - Pinch-to-zoom (digital zoom) is enabled by default; toggle with the `P` key.
 - Start a lightweight WebSocket landmark broadcaster (ws://0.0.0.0:8765) with the `W` key.
 
 These additions extend the interactivity while keeping existing visual effects unchanged.
 
-### 3D Object Rotation & Scaling
+### 🌀 Holographic 3D Objects (Iron-Man Mode)
 
-- While the overlay is enabled (`M`) you can select an object with `N`, pinch thumb and index finger together to grab it, and move horizontally for Y rotation or vertically for X rotation with continuous 360° control.
-	- Grab it with a pinch gesture (thumb+index close) and move it with your fingertip. While grabbed, move your finger horizontally to rotate around the Y axis and vertically to rotate around the X axis for full 360° control.
-	- Use `[` and `]` to rotate left/right (Y axis), and `;` / `'` to tilt up/down (X axis) via keyboard.
-	- Scale the cube with two-hand separation (move both hands apart to increase size) or use `=` and `-` keys to scale manually.
+Press `M` to bring up a glowing wireframe hologram floating above your palm, powered by the standalone [`hologram3d.py`](../hologram3d.py) engine — real 3D rotation matrices and perspective projection (not a flat sprite), with depth-based glow shading and a holographic "projector disc" base under the object.
+
+**Object library (cycle with `N` / `Shift+N`):**
+
+| Object | Description |
+| :--- | :--- |
+| 🧊 **Cube** | The original wireframe box, now with true 3D depth shading. |
+| 🌐 **Globe** | A latitude/longitude wireframe sphere — spin it like a holographic Earth. |
+| 🧍 **Human** | A humanoid stick-figure skeleton (head to feet). |
+| 🚗 **Car** | A wireframe car body, cabin, and four wheels. |
+| ✈️ **Plane** | A fuselage, wing pair, and tail fin built from tapered rings. |
+| 🏢 **Building** | A multi-floor tower with a rooftop antenna. |
+| 🔺 **Pyramid** | A simple four-sided pyramid. |
+| ⚛️ **Atom** | Three tilted electron-orbit rings around a nucleus. |
+
+New objects can be added by writing a small model-builder function in `hologram3d.py` (see [CODE_STRUCTURE.md](CODE_STRUCTURE.md)) — no changes to `main.py` are needed beyond that.
+
+**Grab, rotate, and zoom:**
+- **Grab & move:** pinch your thumb and index finger together near the hologram to grab it; it follows your fingertip while grabbed.
+- **Rotate 360° on X and Y:** while grabbed, moving your hand left/right spins the object around the Y-axis, and moving it up/down tilts it around the X-axis. Rotation is unbounded — you can keep spinning continuously past 360° on either axis, at the same time.
+- **Zoom in/out two ways:** pull your grabbing hand closer to the camera to zoom in (and push it away to zoom out), based on how large your hand appears on screen — or show both hands and spread them apart / bring them together, like a phone's pinch-to-zoom. Both work simultaneously.
+- **Keyboard fallback:** `[` / `]` spin Y, `;` / `'` tilt X, `=` / `-` zoom, and the mouse scroll-wheel also zooms while the hologram is active.
 
 Enhancements:
 
-- Inertia: when you release an object after a grab it continues moving/rotating and decays naturally using damping.
-- Snap-to-palm: if the cube gets close to your palm it gently snaps back and stabilizes.
-- Nicer shading: the cube now renders a soft shadow and gradient faces for a more 3D look.
-- When the cube or pinch-zoom is active, the palm skeletal lines are suppressed to give a cleaner silhouette.
+- Inertia: when you release a grabbed hologram it keeps spinning/coasting and decays naturally using damping.
+- Snap-to-palm: if the hologram gets close to your palm it gently snaps back and stabilizes.
+- Depth-shaded wireframe: edges nearer the camera render brighter and thicker, edges farther away dim — this is what makes the 360° rotation read clearly as real 3D rather than a flat shape.
+- Each object has its own holographic tint color (cyan-gold globe, violet human, orange-red car, etc).
+- When the hologram or pinch-zoom is active, the palm skeletal lines are suppressed to give a cleaner silhouette.
 
 
 # 🚀 Hand Tricks - Feature Documentation
@@ -123,6 +143,14 @@ To keep the application running smoothly on lightweight setups, the following li
 | **`F`** | Toggle Fullscreen | Maximizes the window to full screen. |
 | **`C`** | Screenshot | Captures and saves the frame. |
 | **`V`** | Toggle Record | Starts/stops video recording. |
+| **`O`** | Toggle Hand Outline | Hides/shows the hand skeleton lines. |
+| **`M`** | Toggle 3D Hologram | Summons/hides the holographic 3D object (grab, rotate, zoom). |
+| **`N`** | Next Hologram Object | Cycles Cube → Globe → Human → Car → Plane → Building → Pyramid → Atom (`Shift+N` reverses). |
+| **`P`** | Toggle Pinch-Zoom | Enables/disables the digital camera zoom. |
+| **`[` `]`** | Spin Hologram (Y) | Manually rotates the active hologram left/right. |
+| **`;` `'`** | Tilt Hologram (X) | Manually rotates the active hologram up/down. |
+| **`=` `-`** | Zoom Hologram | Manually zooms the active hologram in/out. |
+| **`W`** | Toggle WebSocket Server | Broadcasts hand landmarks as JSON on port 8765. |
 | **`Q`** | Quit | Releases camera, stops recordings, and exits. |
 
 ---
