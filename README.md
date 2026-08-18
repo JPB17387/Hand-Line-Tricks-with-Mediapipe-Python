@@ -5,7 +5,7 @@
       <p><font color="#A0AEC0">Dynamic real-time hand tracking visualizer and effects engine built with Python and MediaPipe.</font></p>
     </td>
   </tr>
-</table> 
+</table>
 
 This is a Python-based real-time hand-tracking visualization tool that focuses on smooth, aesthetic visuals and hardware-optimized performance. It utilizes MediaPipe and OpenCV to capture hand landmarks and renders interactive visual effects driven by your movements.
 
@@ -33,19 +33,35 @@ The application supports multiple interactive, eye-catching hand effects that yo
 ## New Interactive Features
 
 - `O` : Toggle hand outline/lines off/on (useful for a cleaner silhouette).
-- `M` : Toggle the interactive 3D overlay.
-- `N` : Select the next 3D object: Cube, Globe, Human, Car, Plane, Building, or Satellite.
-- `P` : Toggle pinch-to-zoom (digital zoom centered on hand/palm).
+- `M` : Toggle the **holographic 3D object** overlay anchored to your palm; pinch (thumb + index finger) to grab it, rotate it freely on the X and Y axes, and zoom it in/out — Tony Stark / Iron-Man style.
+- `N` : Cycle to the next 3D hologram object. Hold `Shift` (`N` uppercase) to go to the previous one.
+- `P` : Toggle pinch-to-zoom (digital camera zoom centered on hand/palm).
 - `W` : Start a simple WebSocket streamer on port 8765 to broadcast landmarks as JSON for remote 3D clients or devices.
 
 These features are additive and do not remove or change the original visual effects — they provide additional interactivity and integration points.
 
-Notes on 3D-object behavior:
+### Holding & rotating 3D holograms (Iron-Man mode)
 
-- Pinch thumb and index finger together to grab; move sideways to rotate on Y and up/down to rotate on X through a full 360°.
-- Spread or bring two detected hands together to scale the selected object. `=` and `-` also scale it.
-- Release to retain a small amount of inertial movement; objects gently return toward the palm when nearby.
-- `[` / `]` rotate Y and `;` / `'` rotate X for keyboard control.
+Press `M` to summon a glowing wireframe hologram that floats above your palm. It's powered by [`hologram3d.py`](hologram3d.py), a small real-time 3D engine (real rotation matrices + perspective projection, not a fake sprite) with depth-based glow shading and a holographic "projector disc" base.
+
+**Grab it and move it:** pinch your thumb and index finger together near the object to grab it. While grabbed it follows your fingertip.
+
+**Rotate it 360° on X and Y:** while grabbed, moving your hand left/right spins the object around the Y-axis and moving it up/down tilts it around the X-axis. Rotation is unbounded, so you can keep spinning it past 360° in either direction, continuously, on both axes at once — just like spinning a hologram in mid-air.
+
+**Zoom in and out:** two ways to zoom, and they both work at once:
+1. **Pull-to-zoom (one hand):** once grabbed, pull your hand closer to the camera to zoom the object in, or push it away to zoom out — the app estimates distance from how large your hand appears on screen.
+2. **Two-hand pinch spread:** show both hands and move them apart to zoom in, or bring them together to zoom out (same gesture as a phone's pinch-to-zoom).
+
+You can also fine-tune manually from the keyboard: `[` / `]` spin on Y, `;` / `'` tilt on X, `=` / `-` zoom in/out, and a mouse scroll-wheel also zooms while the hologram is active.
+
+**Switch objects:** press `N` to cycle through the object library — **Cube, Globe, Human, Car, Plane, Building, Pyramid,** and **Atom** — each with its own holographic tint. New objects can be added by dropping a new model builder into `hologram3d.py` (see [CODE_STRUCTURE.md](readme/CODE_STRUCTURE.md)).
+
+Other notes:
+
+- The hologram supports inertia: release a grabbed object and it will keep spinning/coasting and slowly settle.
+- Snap-to-palm brings the object back when it nears your palm for easier control.
+- Depth-based shading (nearer wireframe edges glow brighter, farther edges dim) makes the rotation read clearly in 3D.
+- When the hologram or pinch zoom is active, palm skeletal lines are suppressed for a cleaner appearance.
 
 ---
 
@@ -69,10 +85,17 @@ Configure and customize settings in real-time during execution using the followi
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
 | **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality) while safely restarting camera feeds. |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (low-CPU blur), **Standard Glow**, and **Glow Off**. |
-| **`M` / `N`** | 3D overlay / next object | Shows the interactive object and cycles its seven available meshes. |
 | **`F`** | Toggle Fullscreen | Maximizes the window to borderless fullscreen or scales back to windowed mode. |
 | **`C`** | Take Screenshot | Saves the current screen frame to the `captures/` directory. |
 | **`V`** | Toggle Video Record | Toggles AVI video recording to the `captures/` directory. |
+| **`O`** | Toggle Hand Outline | Hides/shows the hand skeleton lines for a cleaner silhouette. |
+| **`M`** | Toggle 3D Hologram | Summons the holographic object; pinch to grab, rotate on X/Y, and zoom in/out. |
+| **`N`** | Next Hologram Object | Cycles Cube → Globe → Human → Car → Plane → Building → Pyramid → Atom. `Shift+N` goes back. |
+| **`P`** | Toggle Pinch-Zoom | Enables/disables the digital camera zoom driven by a pinch gesture. |
+| **`[` `]`** | Spin Hologram (Y-axis) | Manually rotates the active hologram left/right. |
+| **`;` `'`** | Tilt Hologram (X-axis) | Manually rotates the active hologram up/down. |
+| **`=` `-`** | Zoom Hologram | Manually zooms the active hologram in/out (mouse scroll-wheel also works). |
+| **`W`** | Toggle WebSocket Server | Broadcasts hand landmarks as JSON on port 8765 for remote/3D clients. |
 | **`Q`** | Quit / Exit | Closes all open windows and releases camera hardware resources. |
 
 ---
