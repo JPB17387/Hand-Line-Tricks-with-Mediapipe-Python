@@ -1,11 +1,13 @@
 ## Unreleased
 
-- Replaced the faux cube renderer with selectable local perspective meshes: Cube, Globe, Human, Car, Plane, Building, and Satellite (`N`).
-- Kept pinch grabbing, continuous X/Y rotation, inertia, keyboard rotation, and two-hand/manual scaling.
-- Added interactive toggles: hide hand outlines (`O`), faux 3D cube overlay (`M`), pinch zoom toggle (`P`).
+- **New:** Replaced the faux 3D cube with a full holographic 3D object engine (`hologram3d.py`) — real rotation matrices + perspective projection, depth-based glow shading, and a holographic projector-disc base.
+- **New:** 8 selectable holographic objects — Cube, Globe, Human, Car, Plane, Building, Pyramid, and Atom. Cycle with `N` (next) / `Shift+N` (previous).
+- **New:** Free 360° rotation on both the X and Y axes at once, unbounded (the hologram can keep spinning continuously past a full turn rather than resetting at 360°).
+- **New:** Grab-and-zoom — pull your grabbing hand toward/away from the camera to zoom the hologram in/out (single-hand "pull to zoom", estimated from the hand's on-screen size), in addition to the existing two-hand pinch-spread zoom. Mouse scroll-wheel also zooms the hologram.
+- Added interactive toggles: hide hand outlines (`O`), 3D hologram overlay (`M`), pinch zoom toggle (`P`).
 - Added `ws_server.py` for broadcasting landmarks to remote clients; start/stop with `W` key.
-- Updated documentation to include new features and usage notes.
-- Refinements: added cube inertia/damping, snap-to-palm, improved shading and shadow; palm line suppression when cube/zoom active.
+- Updated documentation (README, FEATURES, CODE_STRUCTURE, PROJECT_SUMMARY, DOCUMENTATION_INDEX) to describe the hologram system and its controls.
+- Refinements: hologram inertia/damping, snap-to-palm, depth-shaded wireframe rendering; palm line suppression when the hologram/zoom is active.
 
 
 ## Buy me a coffee

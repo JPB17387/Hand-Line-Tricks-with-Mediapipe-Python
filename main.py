@@ -50,6 +50,12 @@ try:
 except Exception:
     ws_server = None
 
+# Holographic 3D object engine (real rotation matrices + perspective projection)
+try:
+    import hologram3d
+except Exception:
+    hologram3d = None
+
 if missing_packages:
     print('Missing required Python package(s):', ', '.join(missing_packages))
     print('Install them using: pip install -r requirements.txt')
@@ -222,12 +228,14 @@ class AppState:
         self.fullscreen = False
         # New feature flags
         self.hide_hand_lines = False  # If True, don't draw skeletal lines/outline
-        self.enable_cube = False      # Toggle the interactive 3D object overlay
-        self.object_index = 0
-        self.object_names = ['Cube', 'Globe', 'Human', 'Car', 'Plane', 'Building', 'Satellite']
+        self.enable_cube = False      # Toggle holographic 3D object overlay ("Iron Man" mode)
         self.zoom_enabled = True      # Whether pinch zoom is active
         self.zoom_factor = 1.0        # Current smooth zoom factor (1.0 = normal)
-        self.grabbed = False          # Whether object is grabbed by pinch
+        self.grabbed = False          # Whether the hologram is grabbed by pinch
+        # holo_model: which 3D object is currently displayed. Cycle with [N]/[Shift+N].
+        # See hologram3d.MODEL_ORDER for the full list (cube, globe, human, car,
+        # plane, building, pyramid, atom, ...).
+        self.holo_model = 'cube'
         self.cube = {
             'pos': (w//2, h//2),
             'size': max(40, min(w, h) // 6),
@@ -239,10 +247,15 @@ class AppState:
             'snap_speed': 0.18
         }
         self.prev_index_pos = None
-        # Rotation angles (degrees) and scale multiplier
+        # Rotation angles (degrees, unbounded so the object can spin past 360
+        # continuously on both the X and Y axis) and scale multiplier
         self.cube['rot_x'] = 0.0
         self.cube['rot_y'] = 0.0
         self.cube['scale'] = 1.0
+        # Depth-zoom (single-hand "pull toward you to zoom in" gesture): tracks
+        # the on-screen span of the grabbing hand as a proxy for distance from
+        # the camera, so closing the pinch and pulling the hand changes size.
+        self.holo_grab_span = None
         self.ws_running = False
         self.ws_port = 8765
         
@@ -333,66 +346,64 @@ def draw_semi_transparent_rect(img, pt1, pt2, color, alpha):
     blend = cv2.addWeighted(sub_img, 1.0 - alpha, rect, alpha, 0)
     img[y1:y2, x1:x2] = blend
 
-def mesh_for_object(name):
-    """Return a small, dependency-free mesh centered on the origin."""
-    if name == 'Globe':
-        vertices, faces = [], []
-        rings, segments = 8, 14
-        for r in range(rings + 1):
-            phi = -math.pi / 2 + math.pi * r / rings
-            for s in range(segments):
-                theta = 2 * math.pi * s / segments
-                vertices.append((math.cos(phi) * math.cos(theta), math.sin(phi), math.cos(phi) * math.sin(theta)))
-        for r in range(rings):
-            for s in range(segments):
-                a, b = r * segments + s, r * segments + (s + 1) % segments
-                faces.append((a, b, b + segments, a + segments))
-        return vertices, faces, (255, 205, 70)
-    if name == 'Human':
-        # A clean holographic stick figure reads more clearly than a dense mesh at webcam scale.
-        v = [(0,1.15,0), (0,.55,0), (0,-.35,0), (-.55,.62,0), (.55,.62,0), (-.38,-1.0,0), (.38,-1.0,0)]
-        return v, [(0,1), (1,2), (1,3), (1,4), (2,5), (2,6)], (255, 130, 60)
-    if name == 'Plane':
-        v = [(0,0,1.25), (-.22,0,-1), (.22,0,-1), (-1.35,0,0), (1.35,0,0), (0,.42,-.65), (0,-.42,-.65)]
-        return v, [(0,3,4), (0,4,2), (0,1,3), (0,2,1), (1,5,6)], (90, 220, 255)
-    if name == 'Car':
-        v = [(-1,-.38,.65),(1,-.38,.65),(1,-.38,-.65),(-1,-.38,-.65),(-1,.2,.65),(1,.2,.65),(1,.2,-.65),(-1,.2,-.65),(-.48,.68,.38),(.48,.68,.38),(.48,.68,-.32),(-.48,.68,-.32)]
-        f = [(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,9,8),(5,6,10,9),(6,7,11,10),(7,4,8,11),(8,9,10,11)]
-        return v, f, (80, 90, 255)
-    if name == 'Building':
-        v = [(-.75,-1,-.75),(.75,-1,-.75),(.75,-1,.75),(-.75,-1,.75),(-.75,1,-.75),(.75,1,-.75),(.75,1,.75),(-.75,1,.75),(0,1.55,0)]
-        return v, [(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,8),(5,6,8),(6,7,8),(7,4,8)], (130, 255, 110)
-    if name == 'Satellite':
-        v = [(0,0,0),(-.35,0,0),(.35,0,0),(-1.35,0,0),(-.35,0,0),(.35,0,0),(1.35,0,0),(0,.65,0),(0,-.65,0)]
-        return v, [(0,1),(0,2),(3,4),(5,6),(0,7),(0,8)], (230, 160, 255)
-    # Cube is the default.
-    v = [(-1,-1,-1),(1,-1,-1),(1,1,-1),(-1,1,-1),(-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1)]
-    return v, [(0,1,2,3),(4,7,6,5),(0,4,5,1),(3,2,6,7),(1,5,6,2),(0,3,7,4)], (210, 180, 255)
+def _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg, color=(200, 180, 255)):
+    """Simple faux 3D cube drawn using projected offsets. Only used if the
+    hologram3d module (real wireframe engine) failed to import, so the
+    hand-tricks app still runs without it."""
+    cx, cy = center
+    s = int(size)
+    rx = math.radians(rot_x_deg)
+    ry = math.radians(rot_y_deg)
+    half = s // 2
+    p1 = (cx - half, cy - half)
+    p2 = (cx + half, cy - half)
+    p3 = (cx + half, cy + half)
+    p4 = (cx - half, cy + half)
 
-def draw_3d_object(canvas, center, size, rot_x, rot_y, name):
-    vertices, faces, color = mesh_for_object(name)
-    rx, ry = math.radians(rot_x), math.radians(rot_y)
-    projected, depths = [], []
-    for x, y, z in vertices:
-        y, z = y * math.cos(rx) - z * math.sin(rx), y * math.sin(rx) + z * math.cos(rx)
-        x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
-        perspective = 3.8 / (3.8 + z)
-        projected.append((int(center[0] + x * size * .52 * perspective), int(center[1] - y * size * .52 * perspective)))
-        depths.append(z)
-    overlay = canvas.copy()
-    for face in sorted(faces, key=lambda f: sum(depths[i] for i in f) / len(f)):
-        pts = np.array([projected[i] for i in face], np.int32)
-        if len(face) == 2:  # figure/satellite line mesh
-            cv2.line(overlay, tuple(pts[0]), tuple(pts[1]), color, 3, cv2.LINE_AA)
-        else:
-            shade = .38 + .45 * max(0, min(1, (sum(depths[i] for i in face) / len(face) + 1.5) / 3))
-            fill = tuple(int(c * shade) for c in color)
-            cv2.fillPoly(overlay, [pts], fill)
-            cv2.polylines(overlay, [pts], True, color, 1, cv2.LINE_AA)
-    cv2.addWeighted(overlay, .72, canvas, .28, 0, canvas)
-    if name == 'Human':
-        head = projected[0]
-        cv2.circle(canvas, head, max(5, int(size * .13)), color, 2, cv2.LINE_AA)
+    ox = int(math.sin(ry) * half * 0.6)
+    oy = int(-math.sin(rx) * half * 0.45) - int(half * 0.25)
+
+    q1 = (p1[0] + ox, p1[1] + oy)
+    q2 = (p2[0] + ox, p2[1] + oy)
+    q3 = (p3[0] + ox, p3[1] + oy)
+    q4 = (p4[0] + ox, p4[1] + oy)
+
+    faces = [(p1, p2, p3, p4), (q1, q2, q3, q4)]
+    try:
+        shadow = canvas.copy()
+        sx = int(size * 0.9)
+        sy = int(size * 0.45)
+        cv2.ellipse(shadow, (cx, cy + int(size * 0.6)), (sx, sy), 0, 0, 360, (10, 10, 10), -1)
+        cv2.GaussianBlur(shadow, (21, 21), 0, dst=shadow)
+        cv2.addWeighted(shadow, 0.18, canvas, 0.82, 0, canvas)
+    except Exception:
+        pass
+
+    try:
+        overlay = canvas.copy()
+        cv2.fillPoly(overlay, [np.array(faces[0], np.int32)], (int(color[0] * 0.45), int(color[1] * 0.45), int(color[2] * 0.45)))
+        cv2.fillPoly(overlay, [np.array(faces[1], np.int32)], (min(255, int(color[0] * 0.9)), min(255, int(color[1] * 0.9)), min(255, int(color[2] * 0.9))))
+        cv2.addWeighted(overlay, 0.28, canvas, 0.72, 0, canvas)
+    except Exception:
+        pass
+
+    cv2.polylines(canvas, [np.array(faces[0], np.int32)], True, (40, 40, 45), 2, cv2.LINE_AA)
+    cv2.polylines(canvas, [np.array(faces[1], np.int32)], True, (210, 210, 230), 2, cv2.LINE_AA)
+    for pa, qa in zip(faces[0], faces[1]):
+        cv2.line(canvas, pa, qa, (140, 130, 180), 2, cv2.LINE_AA)
+
+
+def draw_hologram_object(canvas, model_key, center, size, rot_x_deg, rot_y_deg, grabbed=False):
+    """Render the current holographic 3D object (real wireframe + perspective
+    projection via hologram3d, with a faux-cube fallback if that module is
+    unavailable)."""
+    if hologram3d is not None:
+        color = hologram3d.MODEL_COLORS.get(model_key)
+        alpha_boost = 1.25 if grabbed else 1.0
+        hologram3d.render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, size,
+                                    color=color, alpha_boost=alpha_boost)
+    else:
+        _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg)
 
 def pinch_distance(hand):
     # Compute distance between thumb tip (4) and index tip (8) if available
@@ -457,6 +468,15 @@ def mouse_callback(event, x, y, flags, param):
         # Recording / Video Button: [w - 55, 15] to [w - 10, 45]
         elif state.w - 55 <= x <= state.w - 10 and 15 <= y <= 45:
             state.trigger_record = True
+    elif event == cv2.EVENT_MOUSEWHEEL and state.enable_cube:
+        # Mouse-wheel zoom for the 3D hologram, as a desktop-friendly alternative
+        # to the pinch/grab hand gesture zoom.
+        try:
+            delta = cv2.getMouseWheelDelta(flags)
+        except Exception:
+            delta = flags
+        factor = 1.08 if delta > 0 else (1 / 1.08)
+        state.cube['scale'] = max(0.3, min(4.5, state.cube.get('scale', 1.0) * factor))
 
 def main():
     camera_index = choose_camera()
@@ -494,14 +514,22 @@ def main():
 
     with vision.HandLandmarker.create_from_options(options) as landmarker:
         print("Starting camera... Controls:")
-        print("  0-9 : Switch visual effects")
-        print("  R   : Toggle resolution (720p / 360p)")
-        print("  B   : Toggle Glow Mode (Optimized / Standard / Off)")
-        print("  D   : Toggle Diagnostic HUD")
-        print("  F   : Toggle Fullscreen Window")
-        print("  C   : Capture Image screenshot")
-        print("  V   : Toggle Video Recording")
-        print("  Q   : Quit")
+        print("  0-9   : Switch visual effects")
+        print("  R     : Toggle resolution (720p / 360p)")
+        print("  B     : Toggle Glow Mode (Optimized / Standard / Off)")
+        print("  D     : Toggle Diagnostic HUD")
+        print("  F     : Toggle Fullscreen Window")
+        print("  C     : Capture Image screenshot")
+        print("  V     : Toggle Video Recording")
+        print("  O     : Toggle hand outline/skeleton lines")
+        print("  M     : Toggle the 3D Hologram (grab with a pinch, rotate on X/Y, zoom in/out)")
+        print("  N     : Next 3D object (Shift+N: previous) - cube, globe, human, car, plane, building, pyramid, atom")
+        print("  P     : Toggle pinch-to-zoom (digital camera zoom)")
+        print("  [ ]   : Manually spin the hologram left/right (Y-axis)")
+        print("  ; '   : Manually tilt the hologram up/down (X-axis)")
+        print("  = -   : Manually zoom the hologram in/out")
+        print("  W     : Toggle WebSocket landmark broadcaster (port 8765)")
+        print("  Q     : Quit")
         
         # Pre-allocate canvas buffer
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
@@ -927,16 +955,17 @@ def main():
                     first_hand = results.hand_landmarks[0] if len(results.hand_landmarks) > 0 else None
                     pd = pinch_distance(first_hand) if first_hand is not None else None
                     # Smooth zoom factor (use normalized landmark distances)
-                    if pd is not None:
-                        # Grabbing is deliberately independent from display zoom, so P never
-                        # disables the 3D controls.  A close thumb/index pinch is the grab.
-                        state.grabbed = pd < 0.035
-                        if state.zoom_enabled:
-                            # pd is normalized (0..1) because landmarks are in normalized coords
-                            target_zoom = max(1.0, min(3.0, 1.0 + max(0.0, (0.25 - pd)) * 6.0))
-                            state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
-                    else:
-                        state.grabbed = False
+                    if pd is not None and state.zoom_enabled:
+                        # pd is normalized (0..1) because landmarks are in normalized coords
+                        target_zoom = 1.0 + max(0.0, (0.25 - pd)) * 6.0
+                        # clamp
+                        target_zoom = max(1.0, min(3.0, target_zoom))
+                        state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
+                        # if very close, grab the cube
+                        if pd < 0.03:
+                            state.grabbed = True
+                        else:
+                            state.grabbed = False
 
                     for hand in results.hand_landmarks:
                         # Draw skeletal lines only if not hidden by user
@@ -955,89 +984,102 @@ def main():
                             cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
                             cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
 
-                    # Interactive 3D object manipulation
+                    # Holographic 3D object: grab, 360 X/Y rotation, and zoom
                     if state.enable_cube and first_hand is not None:
-                        # Anchor cube to the wrist/palm (use landmark 0 or 9 if available)
+                        # Anchor the hologram to the wrist/palm (use landmark 0 or 9 if available)
                         ref_idx = 9 if len(first_hand) > 9 else 0
                         cx = int(first_hand[ref_idx].x * state.w)
                         cy = int(first_hand[ref_idx].y * state.h)
 
-                        # If grabbed, update cube position to follow index fingertip and allow rotation by motion
+                        # If grabbed (pinched), the object follows the fingertip and
+                        # spins freely (unbounded) on X and Y as the hand moves --
+                        # up/down tilts it on X, left/right spins it on Y.
                         if state.grabbed:
                             ix = int(first_hand[8].x * state.w)
                             iy = int(first_hand[8].y * state.h)
-                            # update position and compute velocity for inertia
                             if state.prev_index_pos is not None:
                                 pdx = ix - state.prev_index_pos[0]
                                 pdy = iy - state.prev_index_pos[1]
-                                # set immediate velocities (pixels/frame)
+                                # set immediate velocities (pixels/frame) for inertia on release
                                 state.cube['vel']['x'] = pdx * 0.72
                                 state.cube['vel']['y'] = pdy * 0.72
-                                # rotation deltas
                                 state.cube['vel']['rot_y'] = pdx * 0.9
                                 state.cube['vel']['rot_x'] = pdy * 0.7
-                                # apply rotation
-                                state.cube['rot_y'] = (state.cube['rot_y'] + pdx * 0.6) % 360
-                                state.cube['rot_x'] = (state.cube['rot_x'] + pdy * 0.45) % 360
+                                # apply rotation now (not wrapped to 360, so it can spin freely)
+                                state.cube['rot_y'] = state.cube['rot_y'] + pdx * 0.6
+                                state.cube['rot_x'] = state.cube['rot_x'] + pdy * 0.45
                             state.cube['pos'] = (ix, iy)
                             state.prev_index_pos = (ix, iy)
+
+                            # Single-hand "pull to zoom" -- the on-screen span of the
+                            # grabbing hand (wrist to middle-fingertip) is a proxy for
+                            # distance from the camera. Pulling the hand closer to the
+                            # camera (hand looks bigger) zooms the hologram in; pushing
+                            # it away zooms out. Like grabbing and pulling a Stark hologram.
+                            if len(first_hand) > 12:
+                                hx1, hy1 = first_hand[0].x * state.w, first_hand[0].y * state.h
+                                hx2, hy2 = first_hand[12].x * state.w, first_hand[12].y * state.h
+                                hand_span = max(1.0, math.hypot(hx2 - hx1, hy2 - hy1))
+                                if state.holo_grab_span is None:
+                                    state.holo_grab_span = hand_span
+                                else:
+                                    span_ratio = hand_span / state.holo_grab_span
+                                    span_ratio = max(0.98, min(1.02, span_ratio))  # per-frame damping
+                                    state.cube['scale'] = max(0.3, min(4.5, state.cube.get('scale', 1.0) * span_ratio))
+                                    state.holo_grab_span = state.holo_grab_span * 0.9 + hand_span * 0.1
                         else:
-                            # gently follow the palm and apply inertia
+                            # gently drift back toward the palm and apply inertia/damping
                             px, py = state.cube['pos']
                             nx = int(cx)
                             ny = int(cy)
-                            # inertial motion
                             px = px + state.cube['vel']['x']
                             py = py + state.cube['vel']['y']
                             state.cube['pos'] = (int(px * 0.95 + nx * 0.05), int(py * 0.95 + ny * 0.05))
-                            # apply damping to velocities and rotation
                             state.cube['vel']['x'] *= state.cube.get('damping', 0.90)
                             state.cube['vel']['y'] *= state.cube.get('damping', 0.90)
                             state.cube['vel']['rot_x'] *= state.cube.get('damping', 0.90)
                             state.cube['vel']['rot_y'] *= state.cube.get('damping', 0.90)
-                            state.cube['rot_x'] = (state.cube['rot_x'] + state.cube['vel']['rot_x']) % 360
-                            state.cube['rot_y'] = (state.cube['rot_y'] + state.cube['vel']['rot_y']) % 360
+                            state.cube['rot_x'] = state.cube['rot_x'] + state.cube['vel']['rot_x']
+                            state.cube['rot_y'] = state.cube['rot_y'] + state.cube['vel']['rot_y']
                             state.prev_index_pos = None
+                            state.holo_grab_span = None
 
-                        # Two-hand scaling: if two hands present, scale cube smoothly by distance
+                        # Two-hand scaling: spread both hands apart to zoom in, bring
+                        # them together to zoom out (classic pinch-to-zoom, mirrors the
+                        # single-hand pull-to-zoom above for when both hands are visible)
                         if num_detected == 2:
                             h1 = results.hand_landmarks[0]
                             h2 = results.hand_landmarks[1]
                             x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
                             x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
                             hands_dist = math.hypot(x2 - x1, y2 - y1)
-                            # map hand separation to scale factor around base size
                             base = state.cube['base_size']
                             target_size = int(max(24, min(state.w, state.h) * 0.6, base * (hands_dist / (state.w * 0.3))))
-                            # smooth resize
                             cur = state.cube['size']
                             state.cube['size'] = int(cur * 0.85 + target_size * 0.15)
                         else:
-                            # apply manual scale multiplier
+                            # apply manual/grab-driven scale multiplier
                             desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
                             state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
+                        state.cube['size'] = max(16, state.cube['size'])
 
                         # Snap-to-palm if close enough when not grabbed
                         if not state.grabbed:
                             px, py = state.cube['pos']
                             dist_to_palm = math.hypot(px - cx, py - cy)
                             if dist_to_palm < state.cube.get('snap_threshold', 40):
-                                # lerp toward palm
                                 sp = state.cube.get('snap_speed', 0.18)
                                 nxp = int(px * (1.0 - sp) + cx * sp)
                                 nyp = int(py * (1.0 - sp) + cy * sp)
                                 state.cube['pos'] = (nxp, nyp)
-                                # reduce velocities
                                 state.cube['vel']['x'] *= 0.6
                                 state.cube['vel']['y'] *= 0.6
 
-                        # Render the selected mesh using its true X/Y rotation state.
-                        draw_3d_object(canvas, state.cube['pos'], state.cube['size'],
-                                       state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
-                                       state.object_names[state.object_index])
-                        cv2.putText(canvas, state.object_names[state.object_index].upper(),
-                                    (state.cube['pos'][0] - 42, state.cube['pos'][1] - state.cube['size'] // 2 - 16),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (220, 255, 255), 1, cv2.LINE_AA)
+                        # Draw the current holographic object with real 3D rotation,
+                        # perspective projection and depth-shaded glow
+                        draw_hologram_object(canvas, state.holo_model, state.cube['pos'], state.cube['size'],
+                                              state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
+                                              grabbed=state.grabbed)
             
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
@@ -1097,7 +1139,7 @@ def main():
                 
                 # Bottom info instruction text bar
                 draw_semi_transparent_rect(final_image, (0, final_image.shape[0] - 25), (final_image.shape[1], final_image.shape[0]), (10, 10, 12), 0.85)
-                cv2.putText(final_image, "Controls: [0-9] Effects | [R] Res | [B] Glow | [F] Full | [C] Photo | [V] Rec | [Q] Exit", 
+                cv2.putText(final_image, "Controls: [0-9] Effects | [M] Hologram | [N] Next Object | [R] Res | [B] Glow | [F] Full | [C] Photo | [V] Rec | [Q] Exit", 
                             (12, final_image.shape[0] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (200, 200, 210), 1, cv2.LINE_AA)
 
             # --- POPUP NOTIFICATIONS SYSTEM ---
@@ -1211,12 +1253,19 @@ def main():
                 state.hide_hand_lines = not state.hide_hand_lines
                 state.set_notification(f"Hand Lines {'Hidden' if state.hide_hand_lines else 'Shown'}")
             elif key == ord('m'):
-                # Toggle interactive 3D object overlay
+                # Toggle the holographic 3D object overlay (grab/rotate/zoom)
                 state.enable_cube = not state.enable_cube
-                state.set_notification(f"3D {state.object_names[state.object_index]} {'Enabled' if state.enable_cube else 'Disabled'}")
-            elif key == ord('n'):
-                state.object_index = (state.object_index + 1) % len(state.object_names)
-                state.set_notification(f"3D object: {state.object_names[state.object_index]}")
+                label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model) if hologram3d else state.holo_model
+                state.set_notification(f"3D Hologram ({label}) {'Enabled' if state.enable_cube else 'Disabled'}")
+            elif key in (ord('n'), ord('N')):
+                # Cycle to the next holographic 3D object (cube, globe, human, car, plane, building, ...)
+                if hologram3d is not None:
+                    if key == ord('N'):
+                        state.holo_model = hologram3d.prev_model(state.holo_model)
+                    else:
+                        state.holo_model = hologram3d.next_model(state.holo_model)
+                    label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)
+                    state.set_notification(f"Hologram: {label}")
             elif key == ord('p'):
                 # Toggle pinch zoom
                 state.zoom_enabled = not state.zoom_enabled
@@ -1239,22 +1288,22 @@ def main():
                 else:
                     state.set_notification("WebSocket module unavailable")
             elif key == ord('['):
-                # Rotate cube left around Y-axis
-                state.cube['rot_y'] = (state.cube['rot_y'] - 10) % 360
+                # Rotate hologram left around Y-axis (keyboard fallback for the hand gesture)
+                state.cube['rot_y'] = state.cube['rot_y'] - 10
             elif key == ord(']'):
-                # Rotate cube right around Y-axis
-                state.cube['rot_y'] = (state.cube['rot_y'] + 10) % 360
+                # Rotate hologram right around Y-axis
+                state.cube['rot_y'] = state.cube['rot_y'] + 10
             elif key == ord(';'):
-                # Rotate cube up around X-axis
-                state.cube['rot_x'] = (state.cube['rot_x'] - 10) % 360
+                # Rotate hologram up around X-axis
+                state.cube['rot_x'] = state.cube['rot_x'] - 10
             elif key == ord('\''):
-                # Rotate cube down around X-axis
-                state.cube['rot_x'] = (state.cube['rot_x'] + 10) % 360
+                # Rotate hologram down around X-axis
+                state.cube['rot_x'] = state.cube['rot_x'] + 10
             elif key == ord('='):
-                # manual scale up
-                state.cube['scale'] = min(4.0, state.cube.get('scale', 1.0) * 1.12)
+                # manual zoom in
+                state.cube['scale'] = min(4.5, state.cube.get('scale', 1.0) * 1.12)
             elif key == ord('-'):
-                # manual scale down
+                # manual zoom out
                 state.cube['scale'] = max(0.3, state.cube.get('scale', 1.0) / 1.12)
             elif ord('0') <= key <= ord('9'):
                 state.active_effect = key - ord('0')
