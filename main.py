@@ -76,7 +76,7 @@ HAND_CONNECTIONS = [
     (0, 17)                              # Palm base
 ]
 
-# Palm-related landmark indices used to suppress palm lines when cube/zoom active
+# Palm-related landmark indices used to suppress palm lines when hologram/zoom active
 PALM_INDICES = {0, 1, 5, 9, 13, 17}
 
 EFFECT_NAMES = {
@@ -226,36 +226,44 @@ class AppState:
         self.h = h
         self.glow_mode = 0  # 0: Optimized, 1: Standard, 2: Off
         self.fullscreen = False
-        # New feature flags
+        
+        # Interactive toggles
         self.hide_hand_lines = False  # If True, don't draw skeletal lines/outline
         self.enable_cube = False      # Toggle holographic 3D object overlay ("Iron Man" mode)
         self.zoom_enabled = True      # Whether pinch zoom is active
         self.zoom_factor = 1.0        # Current smooth zoom factor (1.0 = normal)
-        self.grabbed = False          # Whether the hologram is grabbed by pinch
-        # holo_model: which 3D object is currently displayed. Cycle with [N]/[Shift+N].
-        # See hologram3d.MODEL_ORDER for the full list (cube, globe, human, car,
-        # plane, building, pyramid, atom, ...).
-        self.holo_model = 'cube'
+        self.grabbed = False          # Whether the hologram is currently grabbed by hand
+        self.grab_hand_idx = None     # Index of hand holding the hologram
+        self.hover_near_holo = False  # Whether hand is near hologram and ready to grab
+        
+        # Active holographic 3D object. See hologram3d.MODEL_ORDER for full list (16 models).
+        self.holo_model = 'rocket'
         self.cube = {
-            'pos': (w//2, h//2),
-            'size': max(40, min(w, h) // 6),
+            'pos': (w // 2, h // 2),
+            'size': max(50, min(w, h) // 5),
+            'base_size': max(50, min(w, h) // 5),
             'angle': 0.0,
-            'base_size': max(40, min(w, h) // 6),
-            'vel': {'x': 0.0, 'y': 0.0, 'rot_x': 0.0, 'rot_y': 0.0},
-            'damping': 0.90,
+            'rot_x': 18.0,
+            'rot_y': 35.0,
+            'rot_z': 0.0,
+            'scale': 1.0,
+            'vel': {'x': 0.0, 'y': 0.0, 'rot_x': 0.0, 'rot_y': 0.0, 'rot_z': 0.0},
+            'damping': 0.92,
             'snap_threshold': max(24, min(w, h) // 12),
-            'snap_speed': 0.18
+            'snap_speed': 0.18,
+            'auto_spin': True,        # Gentle ambient rotation when idle
+            'is_placed': False,       # True once user moves and places the hologram
         }
-        self.prev_index_pos = None
-        # Rotation angles (degrees, unbounded so the object can spin past 360
-        # continuously on both the X and Y axis) and scale multiplier
-        self.cube['rot_x'] = 0.0
-        self.cube['rot_y'] = 0.0
-        self.cube['scale'] = 1.0
-        # Depth-zoom (single-hand "pull toward you to zoom in" gesture): tracks
-        # the on-screen span of the grabbing hand as a proxy for distance from
-        # the camera, so closing the pinch and pulling the hand changes size.
-        self.holo_grab_span = None
+        
+        self.prev_grab_pos = None     # (x, y) of grabbing hand in previous frame
+        self.prev_hand_pose = None    # 3D hand orientation (pitch, yaw, roll) in previous frame
+        self.prev_index_pos = None    # Legacy fallback pointer
+        self.holo_grab_span = None    # Baseline hand span for single-hand depth zoom
+        
+        # Touch UI button dwell counters: {btn_name: dwell_frames}
+        self.touch_dwell = {}
+        self.holo_ui_action = None
+        
         self.ws_running = False
         self.ws_port = 8765
         
@@ -348,8 +356,7 @@ def draw_semi_transparent_rect(img, pt1, pt2, color, alpha):
 
 def _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg, color=(200, 180, 255)):
     """Simple faux 3D cube drawn using projected offsets. Only used if the
-    hologram3d module (real wireframe engine) failed to import, so the
-    hand-tricks app still runs without it."""
+    hologram3d module failed to import."""
     cx, cy = center
     s = int(size)
     rx = math.radians(rot_x_deg)
@@ -392,35 +399,65 @@ def _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg, color=(200, 
     for pa, qa in zip(faces[0], faces[1]):
         cv2.line(canvas, pa, qa, (140, 130, 180), 2, cv2.LINE_AA)
 
-
-def draw_hologram_object(canvas, model_key, center, size, rot_x_deg, rot_y_deg, grabbed=False):
-    """Render the current holographic 3D object (real wireframe + perspective
-    projection via hologram3d, with a faux-cube fallback if that module is
-    unavailable)."""
+def draw_hologram_object(canvas, model_key, center, size, rot_x_deg, rot_y_deg, rot_z_deg=0.0, grabbed=False):
+    """Render the current holographic 3D object with real 3-axis rotation,
+    perspective projection, depth glow shading, and projector beam lines."""
     if hologram3d is not None:
         color = hologram3d.MODEL_COLORS.get(model_key)
-        alpha_boost = 1.25 if grabbed else 1.0
+        alpha_boost = 1.35 if grabbed else 1.0
         hologram3d.render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, size,
-                                    color=color, alpha_boost=alpha_boost)
+                                    color=color, alpha_boost=alpha_boost, rot_z_deg=rot_z_deg)
     else:
         _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg)
 
 def pinch_distance(hand):
-    # Compute distance between thumb tip (4) and index tip (8) if available
-    if not hand:
-        return None
-    if len(hand) <= 8:
+    """Compute distance between thumb tip (4) and index tip (8) in normalized coordinates."""
+    if not hand or len(hand) <= 8:
         return None
     x1, y1 = hand[4].x, hand[4].y
     x2, y2 = hand[8].x, hand[8].y
     return math.hypot(x1 - x2, y1 - y2)
 
+def estimate_hand_orientation(hand, w, h):
+    """Estimate 3D orientation (pitch, yaw, roll) in degrees from 21 MediaPipe hand landmarks."""
+    if not hand or len(hand) < 18:
+        return 0.0, 0.0, 0.0
+    
+    # 0: Wrist, 5: Index MCP, 9: Middle MCP, 17: Pinky MCP
+    p0 = np.array([hand[0].x * w, hand[0].y * h, getattr(hand[0], 'z', 0.0) * w], dtype=np.float32)
+    p5 = np.array([hand[5].x * w, hand[5].y * h, getattr(hand[5], 'z', 0.0) * w], dtype=np.float32)
+    p9 = np.array([hand[9].x * w, hand[9].y * h, getattr(hand[9], 'z', 0.0) * w], dtype=np.float32)
+    p17 = np.array([hand[17].x * w, hand[17].y * h, getattr(hand[17], 'z', 0.0) * w], dtype=np.float32)
+    
+    v_length = p9 - p0
+    v_width = p17 - p5
+    
+    pitch_deg = math.degrees(math.atan2(v_length[1], -v_length[2] if abs(v_length[2]) > 1e-3 else -1.0))
+    yaw_deg = math.degrees(math.atan2(v_length[0], -v_length[2] if abs(v_length[2]) > 1e-3 else -1.0))
+    roll_deg = math.degrees(math.atan2(v_width[1], v_width[0]))
+    
+    return pitch_deg, yaw_deg, roll_deg
+
+def is_open_palm(hand):
+    """Check if hand is an open flat palm (all 5 fingertips extended outwards)."""
+    if not hand or len(hand) < 21:
+        return False
+    # Check if finger tips are farther from wrist than joint IP/DIP
+    wx, wy = hand[0].x, hand[0].y
+    for tip_idx, joint_idx in zip([8, 12, 16, 20], [6, 10, 14, 18]):
+        d_tip = math.hypot(hand[tip_idx].x - wx, hand[tip_idx].y - wy)
+        d_joint = math.hypot(hand[joint_idx].x - wx, hand[joint_idx].y - wy)
+        if d_tip < d_joint * 1.15:
+            return False
+    return True
+
 # Sound Synthesizer Functions (native, background-threaded)
 def play_beep_async(freq, duration):
     def play():
         try:
-            winsound.Beep(freq, duration)
-        except:
+            if winsound:
+                winsound.Beep(freq, duration)
+        except Exception:
             pass
     threading.Thread(target=play, daemon=True).start()
 
@@ -430,31 +467,35 @@ def play_shutter_sound():
 def play_rec_start():
     def play():
         try:
-            winsound.Beep(880, 80)
-            winsound.Beep(1100, 80)
-        except:
+            if winsound:
+                winsound.Beep(880, 80)
+                winsound.Beep(1100, 80)
+        except Exception:
             pass
     threading.Thread(target=play, daemon=True).start()
 
 def play_rec_stop():
     def play():
         try:
-            winsound.Beep(1100, 80)
-            winsound.Beep(880, 80)
-        except:
+            if winsound:
+                winsound.Beep(1100, 80)
+                winsound.Beep(880, 80)
+        except Exception:
             pass
     threading.Thread(target=play, daemon=True).start()
+
+def play_ui_click():
+    play_beep_async(1250, 45)
 
 def play_kamehameha_charge():
     def play():
         try:
-            # Synth power sweep up
-            for f in range(120, 520, 15):
-                winsound.Beep(f, 15)
-            # Energy charge pulse
-            for _ in range(3):
-                winsound.Beep(random.randint(550, 750), 30)
-        except:
+            if winsound:
+                for f in range(120, 520, 15):
+                    winsound.Beep(f, 15)
+                for _ in range(3):
+                    winsound.Beep(random.randint(550, 750), 30)
+        except Exception:
             pass
     threading.Thread(target=play, daemon=True).start()
 
@@ -468,9 +509,48 @@ def mouse_callback(event, x, y, flags, param):
         # Recording / Video Button: [w - 55, 15] to [w - 10, 45]
         elif state.w - 55 <= x <= state.w - 10 and 15 <= y <= 45:
             state.trigger_record = True
+        # Hologram Quick Bar Buttons (at top center/left)
+        elif state.enable_cube:
+            # Prev Model: [w//2 - 130, 15] to [w//2 - 80, 45]
+            if state.w // 2 - 130 <= x <= state.w // 2 - 80 and 15 <= y <= 45:
+                if hologram3d:
+                    state.holo_model = hologram3d.prev_model(state.holo_model)
+                    label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)
+                    state.set_notification(f"Hologram: {label}")
+                    play_ui_click()
+            # Next Model: [w//2 + 80, 15] to [w//2 + 130, 45]
+            elif state.w // 2 + 80 <= x <= state.w // 2 + 130 and 15 <= y <= 45:
+                if hologram3d:
+                    state.holo_model = hologram3d.next_model(state.holo_model)
+                    label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)
+                    state.set_notification(f"Hologram: {label}")
+                    play_ui_click()
+            # Recall / Reset Center: [w//2 + 140, 15] to [w//2 + 190, 45]
+            elif state.w // 2 + 140 <= x <= state.w // 2 + 190 and 15 <= y <= 45:
+                state.cube['pos'] = (state.w // 2, state.h // 2)
+                state.cube['vel'] = {'x': 0.0, 'y': 0.0, 'rot_x': 0.0, 'rot_y': 0.0, 'rot_z': 0.0}
+                state.cube['is_placed'] = False
+                state.set_notification("Hologram Recalled & Centered")
+                play_ui_click()
+            # Auto-spin Toggle: [w//2 + 200, 15] to [w//2 + 250, 45]
+            elif state.w // 2 + 200 <= x <= state.w // 2 + 250 and 15 <= y <= 45:
+                state.cube['auto_spin'] = not state.cube.get('auto_spin', True)
+                state.set_notification(f"Auto-Spin {'Enabled' if state.cube['auto_spin'] else 'Disabled'}")
+                play_ui_click()
+            # Toggle Hologram Off: [w//2 - 210, 15] to [w//2 - 140, 45]
+            elif state.w // 2 - 210 <= x <= state.w // 2 - 140 and 15 <= y <= 45:
+                state.enable_cube = False
+                state.set_notification("3D Hologram Disabled")
+                play_ui_click()
+        else:
+            # When Hologram is OFF, click [w//2 - 210, 15] to [w//2 - 140, 45] to turn ON!
+            if state.w // 2 - 210 <= x <= state.w // 2 - 140 and 15 <= y <= 45:
+                state.enable_cube = True
+                label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model) if hologram3d else state.holo_model
+                state.set_notification(f"3D Hologram ({label}) Enabled")
+                play_ui_click()
+
     elif event == cv2.EVENT_MOUSEWHEEL and state.enable_cube:
-        # Mouse-wheel zoom for the 3D hologram, as a desktop-friendly alternative
-        # to the pinch/grab hand gesture zoom.
         try:
             delta = cv2.getMouseWheelDelta(flags)
         except Exception:
@@ -497,7 +577,6 @@ def main():
     if not os.path.exists('captures'):
         os.makedirs('captures')
 
-    # Setup namedWindow as NORMAL to support dynamic resizing and fullscreen fills
     window_name = 'MediaPipe Hand Tricks - Press Q to Exit'
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(window_name, mouse_callback, state)
@@ -522,16 +601,12 @@ def main():
         print("  C     : Capture Image screenshot")
         print("  V     : Toggle Video Recording")
         print("  O     : Toggle hand outline/skeleton lines")
-        print("  M     : Toggle the 3D Hologram (grab with a pinch, rotate on X/Y, zoom in/out)")
-        print("  N     : Next 3D object (Shift+N: previous) - cube, globe, human, car, plane, building, pyramid, atom")
+        print("  M     : Toggle 3D Hologram (100% Keyboard-Free: pinch to grab, move & place anywhere, 360° tilt & rotate, pull/pinch zoom)")
+        print("  N     : Next 3D object (Shift+N: previous) - 16 sci-fi models available!")
         print("  P     : Toggle pinch-to-zoom (digital camera zoom)")
-        print("  [ ]   : Manually spin the hologram left/right (Y-axis)")
-        print("  ; '   : Manually tilt the hologram up/down (X-axis)")
-        print("  = -   : Manually zoom the hologram in/out")
         print("  W     : Toggle WebSocket landmark broadcaster (port 8765)")
         print("  Q     : Quit")
         
-        # Pre-allocate canvas buffer
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
         
         fps_prev_time = time.time()
@@ -556,7 +631,6 @@ def main():
                 state.orbit_particles.clear()
                 state.digital_chars.clear()
                 state.goku_particles.clear()
-                # If resolution changed while recording, force stop the recording
                 if state.is_recording:
                     state.is_recording = False
                     if state.video_writer:
@@ -565,20 +639,17 @@ def main():
                     state.set_notification("Record Stopped (Resolution Changed)")
                     play_rec_stop()
             
-            # Clear canvas buffer
             canvas.fill(0)
-            
-            # Darkened background for neon glow
             background = cv2.convertScaleAbs(image, alpha=0.3, beta=0)
             
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
             
-            # Inference using current timestamp
             timestamp_ms = int(time.time() * 1000)
             inference_start = time.perf_counter()
             results = landmarker.detect_for_video(mp_image, timestamp_ms)
             inference_time = (time.perf_counter() - inference_start) * 1000
+            
             # Publish landmarks to WebSocket broadcaster (if running)
             try:
                 if ws_server is not None and state.ws_running:
@@ -603,7 +674,6 @@ def main():
                 state.prev_wrists.clear()
                 state.hand_velocities.clear()
                 
-            # Cycle colors based on distance or absolute time
             color = (130, 255, 120)  # default green
             hands_distance = 0.0
             
@@ -617,7 +687,6 @@ def main():
             elif num_detected == 1:
                 color = get_dynamic_color(200, max_distance=state.w)
                 
-            # Effect rendering phase
             effect_render_start = time.perf_counter()
             
             # --- EFFECT 1: Inversion Portal (Negative Box) ---
@@ -861,24 +930,20 @@ def main():
                         new_chars.append([dx, dy, d_char, d_speed, d_life, d_color])
                 state.digital_chars = new_chars[-120:]
 
-            # --- NEW EFFECT 9: Goku Power Core (Super Saiyan / Kamehameha) ---
+            # --- EFFECT 9: Goku Power Core (Super Saiyan & Kamehameha) ---
             elif state.active_effect == 9 and results.hand_landmarks:
-                # 9.1: Golden Fiery Aura rising from hand joints
                 for hand in results.hand_landmarks:
                     for lm in hand:
                         lx = int(lm.x * state.w)
                         ly = int(lm.y * state.h)
                         
-                        # Spawn 1 golden/red fiery particle
                         if np.random.rand() > 0.4:
                             vx = np.random.uniform(-1.5, 1.5)
                             vy = np.random.uniform(-5.0, -2.0)
                             life = np.random.uniform(0.4, 0.8)
-                            # Gradient fiery color shift (Red -> Yellow -> White)
-                            f_color = (0, np.random.randint(120, 220), 255) # BGR: Golden Yellow
+                            f_color = (0, np.random.randint(120, 220), 255)
                             state.goku_particles.append([lx, ly, vx, vy, life, f_color])
                             
-                # Update & draw golden flame particles
                 new_goku_parts = []
                 for gp in state.goku_particles:
                     gx, gy, g_vx, g_vy, g_life, g_color = gp
@@ -888,18 +953,16 @@ def main():
                     
                     if g_life > 0 and 0 <= gx < state.w and 0 <= gy < state.h:
                         r = int(g_life * 8) + 1
-                        # Shift color to white/yellow as it ages
                         if g_life < 0.3:
-                            current_color = (130, 230, 255) # Light golden
+                            current_color = (130, 230, 255)
                         elif g_life < 0.15:
-                            current_color = (255, 255, 255) # White hot core
+                            current_color = (255, 255, 255)
                         else:
                             current_color = g_color
                         cv2.circle(canvas, (int(gx), int(gy)), r, current_color, -1)
                         new_goku_parts.append([gx, gy, g_vx, g_vy, g_life, g_color])
                 state.goku_particles = new_goku_parts[-200:]
 
-                # 9.2: Kamehameha sphere forming between hands if they are close
                 if num_detected == 2:
                     hand1 = results.hand_landmarks[0]
                     hand2 = results.hand_landmarks[1]
@@ -912,24 +975,19 @@ def main():
                     mid_y = (cy1 + cy2) // 2
                     dist = math.hypot(cx1 - cx2, cy1 - cy2)
                     
-                    # If hands are relatively close, Kamehameha energy ball triggers!
                     if dist < 240:
-                        # Draw Energy ball with pulsing size
                         energy_radius = int((240 - dist) * 0.35 + math.sin(time.time() * 20) * 8)
                         energy_radius = max(10, energy_radius)
                         
-                        # Visual Core (white hot cyan)
                         cv2.circle(canvas, (mid_x, mid_y), energy_radius, (255, 255, 255), -1)
-                        cv2.circle(canvas, (mid_x, mid_y), energy_radius + 4, (255, 220, 160), 2, cv2.LINE_AA) # Light blue outer
-                        cv2.circle(canvas, (mid_x, mid_y), energy_radius + 12, (255, 180, 80), 1, cv2.LINE_AA) # Cyan corona
+                        cv2.circle(canvas, (mid_x, mid_y), energy_radius + 4, (255, 220, 160), 2, cv2.LINE_AA)
+                        cv2.circle(canvas, (mid_x, mid_y), energy_radius + 12, (255, 180, 80), 1, cv2.LINE_AA)
                         
-                        # Crackling inner lightning in the energy ball
                         for _ in range(3):
                             rx = mid_x + random.randint(-energy_radius, energy_radius)
                             ry = mid_y + random.randint(-energy_radius, energy_radius)
                             cv2.circle(canvas, (rx, ry), random.randint(2, 5), (255, 255, 255), -1)
                             
-                        # Electrical charge arcs from both index fingers into the core!
                         h1_tip = (int(hand1[8].x * state.w), int(hand1[8].y * state.h))
                         h2_tip = (int(hand2[8].x * state.w), int(hand2[8].y * state.h))
                         
@@ -938,7 +996,6 @@ def main():
                         draw_lightning(canvas, h2_tip, (mid_x, mid_y), color=(255, 200, 100), thickness=2, displace=10)
                         draw_lightning(canvas, h2_tip, (mid_x, mid_y), color=(255, 255, 255), thickness=1, displace=10)
 
-                        # Trigger audio synth sweep once per 45 frames when hands get close
                         if state.goku_sound_cooldown <= 0:
                             play_kamehameha_charge()
                             state.goku_sound_cooldown = 45
@@ -947,140 +1004,204 @@ def main():
                 if state.goku_sound_cooldown > 0:
                     state.goku_sound_cooldown -= 1
 
-            # --- RENDER HAND JOINT OVERLAYS ---
-            # Render internal skeleton within each hand independently (No lines between the hands)
-            if state.active_effect != 6: # Skip joint overlays in thermal view to keep look clean
+            # --- RENDER HAND JOINT OVERLAYS & SKELETON ---
+            if state.active_effect != 6:
                 if results.hand_landmarks:
-                    # Update pinch/zoom/grab logic per first hand
-                    first_hand = results.hand_landmarks[0] if len(results.hand_landmarks) > 0 else None
-                    pd = pinch_distance(first_hand) if first_hand is not None else None
-                    # Smooth zoom factor (use normalized landmark distances)
-                    if pd is not None and state.zoom_enabled:
-                        # pd is normalized (0..1) because landmarks are in normalized coords
-                        target_zoom = 1.0 + max(0.0, (0.25 - pd)) * 6.0
-                        # clamp
-                        target_zoom = max(1.0, min(3.0, target_zoom))
-                        state.zoom_factor = state.zoom_factor * 0.85 + target_zoom * 0.15
-                        # if very close, grab the cube
-                        if pd < 0.03:
-                            state.grabbed = True
-                        else:
-                            state.grabbed = False
-
                     for hand in results.hand_landmarks:
-                        # Draw skeletal lines only if not hidden by user
                         if not state.hide_hand_lines:
-                                for start_idx, end_idx in HAND_CONNECTIONS:
-                                    # Optionally suppress palm lines when cube or zoom active
-                                    if (state.enable_cube or state.zoom_enabled) and (start_idx in PALM_INDICES or end_idx in PALM_INDICES):
-                                        continue
-                                    pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
-                                    pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
-                                    cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
-                                    cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
+                            for start_idx, end_idx in HAND_CONNECTIONS:
+                                if (state.enable_cube or state.zoom_enabled) and (start_idx in PALM_INDICES or end_idx in PALM_INDICES):
+                                    continue
+                                pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
+                                pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
+                                cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+                                cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
                         
                         for landmark in hand:
                             x, y = int(landmark.x * state.w), int(landmark.y * state.h)
                             cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
                             cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
 
-                    # Holographic 3D object: grab, 360 X/Y rotation, and zoom
-                    if state.enable_cube and first_hand is not None:
-                        # Anchor the hologram to the wrist/palm (use landmark 0 or 9 if available)
-                        ref_idx = 9 if len(first_hand) > 9 else 0
-                        cx = int(first_hand[ref_idx].x * state.w)
-                        cy = int(first_hand[ref_idx].y * state.h)
+            # =========================================================================
+            # KEYBOARD-FREE 3D HOLOGRAM INTERACTION ENGINE (IRON-MAN GESTURES)
+            # =========================================================================
+            if state.enable_cube and results.hand_landmarks:
+                hx, hy = state.cube['pos']
+                h_size = state.cube.get('size', 80)
+                hit_radius = max(90, int(h_size * 1.35))
+                
+                active_hand = None
+                active_hand_idx = None
+                is_pinching = False
+                pinch_midpoint = None
+                
+                # Check for grab / hover proximity across all detected hands
+                state.hover_near_holo = False
+                for h_idx, hand in enumerate(results.hand_landmarks):
+                    tx = int(hand[4].x * state.w)
+                    ty = int(hand[4].y * state.h)
+                    ix = int(hand[8].x * state.w)
+                    iy = int(hand[8].y * state.h)
+                    
+                    p_mid = ((tx + ix) // 2, (ty + iy) // 2)
+                    d_pinch = math.hypot(tx - ix, ty - iy)
+                    d_holo = math.hypot(p_mid[0] - hx, p_mid[1] - hy)
+                    
+                    if d_holo < hit_radius:
+                        state.hover_near_holo = True
+                    
+                    # Grabbing condition: pinch posture + (near hologram OR already holding it)
+                    if d_pinch < 44 or (pinch_distance(hand) is not None and pinch_distance(hand) < 0.065):
+                        if d_holo < hit_radius or (state.grabbed and state.grab_hand_idx == h_idx):
+                            active_hand = hand
+                            active_hand_idx = h_idx
+                            is_pinching = True
+                            pinch_midpoint = p_mid
+                            break
+                            
+                # --- STATE: GRABBED (PICK UP, MOVE, PLACE ANYWHERE, ROTATE & TILT 360°, ZOOM) ---
+                if is_pinching and active_hand is not None:
+                    state.grabbed = True
+                    state.grab_hand_idx = active_hand_idx
+                    state.cube['is_placed'] = True
+                    gx, gy = pinch_midpoint
+                    
+                    # 1. Natural Pick-and-Place: Hologram moves with hand
+                    if state.prev_grab_pos is not None:
+                        dx = gx - state.prev_grab_pos[0]
+                        dy = gy - state.prev_grab_pos[1]
+                        
+                        # Store velocity for realistic inertia on release
+                        state.cube['vel']['x'] = dx * 0.75
+                        state.cube['vel']['y'] = dy * 0.75
+                        state.cube['vel']['rot_y'] = dx * 0.90
+                        state.cube['vel']['rot_x'] = dy * 0.70
+                        
+                        # 2. Continuous 360° Drag Rotation (Unbounded pitch & yaw)
+                        state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + dx * 0.70
+                        state.cube['rot_x'] = state.cube.get('rot_x', 0.0) + dy * 0.55
+                    
+                    state.cube['pos'] = (gx, gy)
+                    state.prev_grab_pos = (gx, gy)
+                    
+                    # 3. 3D Hand Pose Orientation (Tilt / Twist wrist to rotate hologram in real 3D)
+                    cur_pitch, cur_yaw, cur_roll = estimate_hand_orientation(active_hand, state.w, state.h)
+                    if state.prev_hand_pose is not None:
+                        dp = cur_pitch - state.prev_hand_pose[0]
+                        dy_p = cur_yaw - state.prev_hand_pose[1]
+                        dr = cur_roll - state.prev_hand_pose[2]
+                        if abs(dp) < 35:
+                            state.cube['rot_x'] = state.cube.get('rot_x', 0.0) + dp * 0.35
+                        if abs(dy_p) < 35:
+                            state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + dy_p * 0.35
+                        if abs(dr) < 35:
+                            state.cube['rot_z'] = state.cube.get('rot_z', 0.0) + dr * 0.45
+                    state.prev_hand_pose = (cur_pitch, cur_yaw, cur_roll)
+                    
+                    # 4. Single-Hand "Pull to Zoom" Depth Gesture
+                    hx1, hy1 = active_hand[0].x * state.w, active_hand[0].y * state.h
+                    hx2, hy2 = active_hand[12].x * state.w, active_hand[12].y * state.h
+                    hand_span = max(1.0, math.hypot(hx2 - hx1, hy2 - hy1))
+                    if state.holo_grab_span is None:
+                        state.holo_grab_span = hand_span
+                    else:
+                        span_ratio = hand_span / state.holo_grab_span
+                        span_ratio = max(0.96, min(1.04, span_ratio))
+                        state.cube['scale'] = max(0.3, min(4.5, state.cube.get('scale', 1.0) * span_ratio))
+                        state.holo_grab_span = state.holo_grab_span * 0.88 + hand_span * 0.12
+                        
+                    # 5. Visual Glow: Holographic Tractor Beam / Magnetic Tether
+                    tx = int(active_hand[4].x * state.w)
+                    ty = int(active_hand[4].y * state.h)
+                    ix = int(active_hand[8].x * state.w)
+                    iy = int(active_hand[8].y * state.h)
+                    cx = int(active_hand[9].x * state.w)
+                    cy = int(active_hand[9].y * state.h)
+                    
+                    draw_lightning(canvas, (tx, ty), (gx, gy), color=(255, 240, 160), thickness=2, displace=6)
+                    draw_lightning(canvas, (ix, iy), (gx, gy), color=(255, 240, 160), thickness=2, displace=6)
+                    draw_lightning(canvas, (cx, cy), (gx, gy), color=(200, 255, 240), thickness=1, displace=8)
+                    cv2.circle(canvas, (gx, gy), 10, (255, 255, 255), 1, cv2.LINE_AA)
+                    cv2.circle(canvas, (gx, gy), 16, (255, 200, 80), 1, cv2.LINE_AA)
+                    
+                # --- STATE: RELEASED (STAYS PLACED WHERE DROPPED, INERTIA COASTING) ---
+                else:
+                    state.grabbed = False
+                    state.grab_hand_idx = None
+                    state.prev_grab_pos = None
+                    state.prev_hand_pose = None
+                    state.holo_grab_span = None
+                    
+                    # Apply smooth inertial physics to position and 360° spin
+                    px, py = state.cube['pos']
+                    px += state.cube['vel']['x']
+                    py += state.cube['vel']['y']
+                    state.cube['vel']['x'] *= state.cube.get('damping', 0.92)
+                    state.cube['vel']['y'] *= state.cube.get('damping', 0.92)
+                    
+                    state.cube['rot_x'] = state.cube.get('rot_x', 0.0) + state.cube['vel']['rot_x']
+                    state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + state.cube['vel']['rot_y']
+                    state.cube['rot_z'] = state.cube.get('rot_z', 0.0) + state.cube['vel']['rot_z']
+                    state.cube['vel']['rot_x'] *= state.cube.get('damping', 0.92)
+                    state.cube['vel']['rot_y'] *= state.cube.get('damping', 0.92)
+                    state.cube['vel']['rot_z'] *= state.cube.get('damping', 0.92)
+                    
+                    # Ambient continuous 360° revolution when idle
+                    if state.cube.get('auto_spin', True) and abs(state.cube['vel']['rot_y']) < 0.08:
+                        state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + 0.55
+                        
+                    # Keep hologram safely on screen
+                    px = max(45, min(state.w - 45, px))
+                    py = max(45, min(state.h - 45, py))
+                    state.cube['pos'] = (int(px), int(py))
+                    
+                    # If not yet placed by user, float nicely above primary palm
+                    if not state.cube.get('is_placed', False) and len(results.hand_landmarks) > 0:
+                        first_h = results.hand_landmarks[0]
+                        palm_x = int(first_h[9].x * state.w)
+                        palm_y = int(first_h[9].y * state.h) - 75
+                        state.cube['pos'] = (int(px * 0.85 + palm_x * 0.15), int(py * 0.85 + palm_y * 0.15))
+                        
+                    # Open Palm Recall Gesture: Hold open palm beneath hologram to smoothly recall it
+                    for hand in results.hand_landmarks:
+                        if is_open_palm(hand):
+                            plm_x = int(hand[9].x * state.w)
+                            plm_y = int(hand[9].y * state.h)
+                            d_plm = math.hypot(px - plm_x, py - (plm_y - 75))
+                            if d_plm < 90:
+                                state.cube['pos'] = (int(px * 0.82 + plm_x * 0.18), int(py * 0.82 + (plm_y - 75) * 0.18))
+                                state.cube['vel']['x'] *= 0.5
+                                state.cube['vel']['y'] *= 0.5
+                                cv2.circle(canvas, (plm_x, plm_y), 32, (100, 255, 200), 1, cv2.LINE_AA)
 
-                        # If grabbed (pinched), the object follows the fingertip and
-                        # spins freely (unbounded) on X and Y as the hand moves --
-                        # up/down tilts it on X, left/right spins it on Y.
-                        if state.grabbed:
-                            ix = int(first_hand[8].x * state.w)
-                            iy = int(first_hand[8].y * state.h)
-                            if state.prev_index_pos is not None:
-                                pdx = ix - state.prev_index_pos[0]
-                                pdy = iy - state.prev_index_pos[1]
-                                # set immediate velocities (pixels/frame) for inertia on release
-                                state.cube['vel']['x'] = pdx * 0.72
-                                state.cube['vel']['y'] = pdy * 0.72
-                                state.cube['vel']['rot_y'] = pdx * 0.9
-                                state.cube['vel']['rot_x'] = pdy * 0.7
-                                # apply rotation now (not wrapped to 360, so it can spin freely)
-                                state.cube['rot_y'] = state.cube['rot_y'] + pdx * 0.6
-                                state.cube['rot_x'] = state.cube['rot_x'] + pdy * 0.45
-                            state.cube['pos'] = (ix, iy)
-                            state.prev_index_pos = (ix, iy)
+                # --- TWO-HAND DUAL MANIPULATION (SPREAD TO ZOOM) ---
+                if num_detected == 2:
+                    h1 = results.hand_landmarks[0]
+                    h2 = results.hand_landmarks[1]
+                    x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
+                    x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
+                    hands_dist = math.hypot(x2 - x1, y2 - y1)
+                    target_scale = max(0.4, min(3.8, hands_dist / (state.w * 0.32)))
+                    state.cube['scale'] = state.cube.get('scale', 1.0) * 0.90 + target_scale * 0.10
 
-                            # Single-hand "pull to zoom" -- the on-screen span of the
-                            # grabbing hand (wrist to middle-fingertip) is a proxy for
-                            # distance from the camera. Pulling the hand closer to the
-                            # camera (hand looks bigger) zooms the hologram in; pushing
-                            # it away zooms out. Like grabbing and pulling a Stark hologram.
-                            if len(first_hand) > 12:
-                                hx1, hy1 = first_hand[0].x * state.w, first_hand[0].y * state.h
-                                hx2, hy2 = first_hand[12].x * state.w, first_hand[12].y * state.h
-                                hand_span = max(1.0, math.hypot(hx2 - hx1, hy2 - hy1))
-                                if state.holo_grab_span is None:
-                                    state.holo_grab_span = hand_span
-                                else:
-                                    span_ratio = hand_span / state.holo_grab_span
-                                    span_ratio = max(0.98, min(1.02, span_ratio))  # per-frame damping
-                                    state.cube['scale'] = max(0.3, min(4.5, state.cube.get('scale', 1.0) * span_ratio))
-                                    state.holo_grab_span = state.holo_grab_span * 0.9 + hand_span * 0.1
-                        else:
-                            # gently drift back toward the palm and apply inertia/damping
-                            px, py = state.cube['pos']
-                            nx = int(cx)
-                            ny = int(cy)
-                            px = px + state.cube['vel']['x']
-                            py = py + state.cube['vel']['y']
-                            state.cube['pos'] = (int(px * 0.95 + nx * 0.05), int(py * 0.95 + ny * 0.05))
-                            state.cube['vel']['x'] *= state.cube.get('damping', 0.90)
-                            state.cube['vel']['y'] *= state.cube.get('damping', 0.90)
-                            state.cube['vel']['rot_x'] *= state.cube.get('damping', 0.90)
-                            state.cube['vel']['rot_y'] *= state.cube.get('damping', 0.90)
-                            state.cube['rot_x'] = state.cube['rot_x'] + state.cube['vel']['rot_x']
-                            state.cube['rot_y'] = state.cube['rot_y'] + state.cube['vel']['rot_y']
-                            state.prev_index_pos = None
-                            state.holo_grab_span = None
+                # Compute dynamic render size
+                desired_size = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
+                state.cube['size'] = max(24, int(state.cube.get('size', desired_size) * 0.85 + desired_size * 0.15))
 
-                        # Two-hand scaling: spread both hands apart to zoom in, bring
-                        # them together to zoom out (classic pinch-to-zoom, mirrors the
-                        # single-hand pull-to-zoom above for when both hands are visible)
-                        if num_detected == 2:
-                            h1 = results.hand_landmarks[0]
-                            h2 = results.hand_landmarks[1]
-                            x1, y1 = int(h1[0].x * state.w), int(h1[0].y * state.h)
-                            x2, y2 = int(h2[0].x * state.w), int(h2[0].y * state.h)
-                            hands_dist = math.hypot(x2 - x1, y2 - y1)
-                            base = state.cube['base_size']
-                            target_size = int(max(24, min(state.w, state.h) * 0.6, base * (hands_dist / (state.w * 0.3))))
-                            cur = state.cube['size']
-                            state.cube['size'] = int(cur * 0.85 + target_size * 0.15)
-                        else:
-                            # apply manual/grab-driven scale multiplier
-                            desired = int(state.cube['base_size'] * state.cube.get('scale', 1.0))
-                            state.cube['size'] = int(state.cube['size'] * 0.85 + desired * 0.15)
-                        state.cube['size'] = max(16, state.cube['size'])
+                # Visual Targeting Reticle when hovering near hologram
+                if state.hover_near_holo and not state.grabbed:
+                    cx_h, cy_h = state.cube['pos']
+                    r_h = state.cube['size']
+                    draw_hud_corners(canvas, (cx_h - r_h, cy_h - r_h), (cx_h + r_h, cy_h + r_h),
+                                     (255, 220, 100), thickness=1, length=14)
+                    cv2.putText(canvas, "PINCH TO GRAB", (cx_h - 45, cy_h - r_h - 8),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 230, 150), 1, cv2.LINE_AA)
 
-                        # Snap-to-palm if close enough when not grabbed
-                        if not state.grabbed:
-                            px, py = state.cube['pos']
-                            dist_to_palm = math.hypot(px - cx, py - cy)
-                            if dist_to_palm < state.cube.get('snap_threshold', 40):
-                                sp = state.cube.get('snap_speed', 0.18)
-                                nxp = int(px * (1.0 - sp) + cx * sp)
-                                nyp = int(py * (1.0 - sp) + cy * sp)
-                                state.cube['pos'] = (nxp, nyp)
-                                state.cube['vel']['x'] *= 0.6
-                                state.cube['vel']['y'] *= 0.6
+                # Draw the 3D Holographic Object with full 3-axis rotation and depth glow
+                draw_hologram_object(canvas, state.holo_model, state.cube['pos'], state.cube['size'],
+                                      state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
+                                      rot_z_deg=state.cube.get('rot_z', 0.0), grabbed=state.grabbed)
 
-                        # Draw the current holographic object with real 3D rotation,
-                        # perspective projection and depth-shaded glow
-                        draw_hologram_object(canvas, state.holo_model, state.cube['pos'], state.cube['size'],
-                                              state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
-                                              grabbed=state.grabbed)
-            
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
             if state.glow_mode == 0:
@@ -1099,26 +1220,107 @@ def main():
             glow_time = (time.perf_counter() - glow_start) * 1000
             effect_time = (time.perf_counter() - effect_render_start) * 1000
 
-            # --- RENDER ON-SCREEN INTERACTIVE BUTTONS ---
-            # 1. Capture Image Button (Icon representation + text)
-            # Box coords: [w - 110, 15] to [w - 65, 45]
+            # =========================================================================
+            # ON-SCREEN TOUCHABLE & CLICKABLE HUD CONTROLS
+            # =========================================================================
+            
+            # 1. Camera Snapshot Button: [w - 110, 15] to [w - 65, 45]
             draw_semi_transparent_rect(final_image, (state.w - 110, 15), (state.w - 65, 45), (40, 40, 45), 0.7)
             cv2.rectangle(final_image, (state.w - 110, 15), (state.w - 65, 45), (150, 150, 170), 1, cv2.LINE_AA)
-            # Camera icon drawing (a little square body + small flash circle + lens circle)
             cv2.rectangle(final_image, (state.w - 100, 24), (state.w - 75, 40), (220, 220, 230), 1, cv2.LINE_AA)
             cv2.circle(final_image, (state.w - 87, 32), 4, (120, 240, 120), -1, cv2.LINE_AA)
             
-            # 2. Record Video Button (Red record indicator circle + text)
-            # Box coords: [w - 55, 15] to [w - 10, 45]
+            # 2. Video Record Button: [w - 55, 15] to [w - 10, 45]
             draw_semi_transparent_rect(final_image, (state.w - 55, 15), (state.w - 10, 45), (40, 40, 45), 0.7)
             cv2.rectangle(final_image, (state.w - 55, 15), (state.w - 10, 45), (150, 150, 170), 1, cv2.LINE_AA)
             if state.is_recording:
-                # Blinking red dot when recording
                 dot_color = (0, 0, 255) if int(time.time() * 2) % 2 == 0 else (50, 50, 80)
                 cv2.circle(final_image, (state.w - 32, 30), 6, dot_color, -1, cv2.LINE_AA)
             else:
-                # Solid dark red circle
                 cv2.circle(final_image, (state.w - 32, 30), 6, (0, 0, 150), -1, cv2.LINE_AA)
+
+            # 3. Interactive Hologram Quick Bar (Top Center)
+            bx = state.w // 2 - 210
+            by = 15
+            # [HOLO ON/OFF] Toggle Button
+            holo_bg = (40, 90, 50) if state.enable_cube else (35, 35, 42)
+            holo_border = (80, 220, 100) if state.enable_cube else (110, 110, 125)
+            draw_semi_transparent_rect(final_image, (bx, by), (bx + 75, by + 30), holo_bg, 0.8)
+            cv2.rectangle(final_image, (bx, by), (bx + 75, by + 30), holo_border, 1, cv2.LINE_AA)
+            cv2.putText(final_image, "3D HOLO", (bx + 8, by + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.40,
+                        (255, 255, 255) if state.enable_cube else (170, 170, 185), 1, cv2.LINE_AA)
+            
+            if state.enable_cube:
+                # [ ◀ PREV ] Button
+                draw_semi_transparent_rect(final_image, (bx + 80, by), (bx + 125, by + 30), (35, 35, 45), 0.8)
+                cv2.rectangle(final_image, (bx + 80, by), (bx + 125, by + 30), (120, 120, 140), 1, cv2.LINE_AA)
+                cv2.putText(final_image, "<", (bx + 98, by + 21), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (240, 240, 250), 1, cv2.LINE_AA)
+                
+                # Active Model Name Display Pill
+                model_lbl = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model) if hologram3d else state.holo_model
+                draw_semi_transparent_rect(final_image, (bx + 130, by), (bx + 285, by + 30), (25, 25, 35), 0.85)
+                cv2.rectangle(final_image, (bx + 130, by), (bx + 285, by + 30), (99, 102, 241), 1, cv2.LINE_AA)
+                cv2.putText(final_image, f"{model_lbl}", (bx + 140, by + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 220, 100), 1, cv2.LINE_AA)
+                
+                # [ NEXT ▶ ] Button
+                draw_semi_transparent_rect(final_image, (bx + 290, by), (bx + 335, by + 30), (35, 35, 45), 0.8)
+                cv2.rectangle(final_image, (bx + 290, by), (bx + 335, by + 30), (120, 120, 140), 1, cv2.LINE_AA)
+                cv2.putText(final_image, ">", (bx + 308, by + 21), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (240, 240, 250), 1, cv2.LINE_AA)
+                
+                # [ ⟲ RESET / RECALL ] Button
+                draw_semi_transparent_rect(final_image, (bx + 340, by), (bx + 395, by + 30), (35, 35, 45), 0.8)
+                cv2.rectangle(final_image, (bx + 340, by), (bx + 395, by + 30), (120, 120, 140), 1, cv2.LINE_AA)
+                cv2.putText(final_image, "RECALL", (bx + 344, by + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (200, 240, 255), 1, cv2.LINE_AA)
+                
+                # [ ⚡ SPIN ] Auto-spin toggle button
+                spin_bg = (50, 45, 80) if state.cube.get('auto_spin', True) else (30, 30, 35)
+                draw_semi_transparent_rect(final_image, (bx + 400, by), (bx + 450, by + 30), spin_bg, 0.8)
+                cv2.rectangle(final_image, (bx + 400, by), (bx + 450, by + 30), (150, 130, 240), 1, cv2.LINE_AA)
+                cv2.putText(final_image, "SPIN", (bx + 408, by + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.38,
+                            (255, 230, 120) if state.cube.get('auto_spin', True) else (140, 140, 150), 1, cv2.LINE_AA)
+
+            # Fingertip Hover-Touch Interaction for On-Screen Buttons
+            if results.hand_landmarks:
+                for hand in results.hand_landmarks:
+                    fx, fy = int(hand[8].x * state.w), int(hand[8].y * state.h)
+                    # Check button bounding boxes
+                    touch_map = {
+                        'holo_toggle': (bx, by, bx + 75, by + 30),
+                        'prev_model': (bx + 80, by, bx + 125, by + 30),
+                        'next_model': (bx + 290, by, bx + 335, by + 30),
+                        'recall': (bx + 340, by, bx + 395, by + 30),
+                        'spin_toggle': (bx + 400, by, bx + 450, by + 30),
+                        'photo': (state.w - 110, 15, state.w - 65, 45),
+                        'record': (state.w - 55, 15, state.w - 10, 45),
+                    }
+                    for b_name, (x1, y1, x2, y2) in touch_map.items():
+                        if x1 <= fx <= x2 and y1 <= fy <= y2:
+                            cv2.circle(final_image, (fx, fy), 8, (255, 255, 255), 2, cv2.LINE_AA)
+                            state.touch_dwell[b_name] = state.touch_dwell.get(b_name, 0) + 1
+                            if state.touch_dwell[b_name] == 14:  # Trigger on dwell (~0.4s)
+                                if b_name == 'holo_toggle':
+                                    state.enable_cube = not state.enable_cube
+                                    state.set_notification(f"3D Hologram {'Enabled' if state.enable_cube else 'Disabled'}")
+                                elif b_name == 'prev_model' and state.enable_cube and hologram3d:
+                                    state.holo_model = hologram3d.prev_model(state.holo_model)
+                                    state.set_notification(f"Hologram: {hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)}")
+                                elif b_name == 'next_model' and state.enable_cube and hologram3d:
+                                    state.holo_model = hologram3d.next_model(state.holo_model)
+                                    state.set_notification(f"Hologram: {hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)}")
+                                elif b_name == 'recall' and state.enable_cube:
+                                    state.cube['pos'] = (state.w // 2, state.h // 2)
+                                    state.cube['is_placed'] = False
+                                    state.set_notification("Hologram Recalled")
+                                elif b_name == 'spin_toggle' and state.enable_cube:
+                                    state.cube['auto_spin'] = not state.cube.get('auto_spin', True)
+                                    state.set_notification(f"Auto-Spin {'Enabled' if state.cube['auto_spin'] else 'Disabled'}")
+                                elif b_name == 'photo':
+                                    state.trigger_capture = True
+                                elif b_name == 'record':
+                                    state.trigger_record = True
+                                play_ui_click()
+                        else:
+                            state.touch_dwell[b_name] = max(0, state.touch_dwell.get(b_name, 0) - 1)
 
             # --- DIAGNOSTIC HUD OVERLAY ---
             if state.show_hud:
@@ -1145,13 +1347,12 @@ def main():
             # --- POPUP NOTIFICATIONS SYSTEM ---
             if time.time() < state.notification_time:
                 cv2.putText(final_image, state.notification_text, 
-                            (state.w // 2 - 120, 60), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (50, 255, 50), 2, cv2.LINE_AA)
+                            (state.w // 2 - 140, 75), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (50, 255, 120), 2, cv2.LINE_AA)
 
             # --- VIDEO WRITER FRAME CAPTURE ---
             if state.is_recording and state.video_writer:
                 state.video_writer.write(final_image)
-                # Draw minor REC indicator outside the HUD
                 cv2.putText(final_image, "● RECORDING", (state.w - 145, final_image.shape[0] - 38),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
 
@@ -1201,7 +1402,7 @@ def main():
 
             cv2.imshow(window_name, display_image)
             
-            # --- KEYBOARD CONTROLS PROCESSING ---
+            # --- KEYBOARD CONTROLS PROCESSING (SECONDARY FALLBACKS) ---
             key = cv2.waitKey(5) & 0xFF
             if key == ord('q'):
                 break
@@ -1222,23 +1423,18 @@ def main():
             elif key == ord('r'):
                 # Toggle Resolution
                 new_w, new_h = (1280, 720) if state.w == 640 else (640, 360)
-                
-                # Release and re-open to prevent MSMF stream failure crashes on Windows
                 cap.release()
                 cap = cv2.VideoCapture(camera_index)
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, new_w)
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, new_h)
                 
-                # Flush camera queue buffer securely checking success
                 for _ in range(5):
                     ret, _ = cap.read()
                     if not ret:
                         break
                         
-                # Update status
                 state.w = new_w
                 state.h = new_h
-                # Clear state and pre-allocate
                 state.init_ripple_maps(new_w, new_h)
                 canvas = np.zeros((new_h, new_w, 3), dtype=np.uint8)
                 state.ghost_buffer.clear()
@@ -1249,16 +1445,13 @@ def main():
                 
                 cv2.setMouseCallback(window_name, mouse_callback, state)
             elif key == ord('o'):
-                # Toggle hand outline/lines
                 state.hide_hand_lines = not state.hide_hand_lines
                 state.set_notification(f"Hand Lines {'Hidden' if state.hide_hand_lines else 'Shown'}")
             elif key == ord('m'):
-                # Toggle the holographic 3D object overlay (grab/rotate/zoom)
                 state.enable_cube = not state.enable_cube
                 label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model) if hologram3d else state.holo_model
                 state.set_notification(f"3D Hologram ({label}) {'Enabled' if state.enable_cube else 'Disabled'}")
             elif key in (ord('n'), ord('N')):
-                # Cycle to the next holographic 3D object (cube, globe, human, car, plane, building, ...)
                 if hologram3d is not None:
                     if key == ord('N'):
                         state.holo_model = hologram3d.prev_model(state.holo_model)
@@ -1267,11 +1460,9 @@ def main():
                     label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model)
                     state.set_notification(f"Hologram: {label}")
             elif key == ord('p'):
-                # Toggle pinch zoom
                 state.zoom_enabled = not state.zoom_enabled
                 state.set_notification(f"Pinch Zoom {'Enabled' if state.zoom_enabled else 'Disabled'}")
             elif key == ord('w'):
-                # Toggle websocket broadcaster
                 if ws_server is not None:
                     if not state.ws_running:
                         try:
@@ -1281,34 +1472,26 @@ def main():
                         except Exception as e:
                             state.set_notification(f"WS start failed: {e}")
                     else:
-                        # stopping is a no-op in simple server, flip flag
                         state.ws_running = False
                         ws_server.latest_landmarks = None
                         state.set_notification("WebSocket server stopped")
                 else:
                     state.set_notification("WebSocket module unavailable")
             elif key == ord('['):
-                # Rotate hologram left around Y-axis (keyboard fallback for the hand gesture)
-                state.cube['rot_y'] = state.cube['rot_y'] - 10
+                state.cube['rot_y'] = state.cube.get('rot_y', 0.0) - 10
             elif key == ord(']'):
-                # Rotate hologram right around Y-axis
-                state.cube['rot_y'] = state.cube['rot_y'] + 10
+                state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + 10
             elif key == ord(';'):
-                # Rotate hologram up around X-axis
-                state.cube['rot_x'] = state.cube['rot_x'] - 10
+                state.cube['rot_x'] = state.cube.get('rot_x', 0.0) - 10
             elif key == ord('\''):
-                # Rotate hologram down around X-axis
-                state.cube['rot_x'] = state.cube['rot_x'] + 10
+                state.cube['rot_x'] = state.cube.get('rot_x', 0.0) + 10
             elif key == ord('='):
-                # manual zoom in
                 state.cube['scale'] = min(4.5, state.cube.get('scale', 1.0) * 1.12)
             elif key == ord('-'):
-                # manual zoom out
                 state.cube['scale'] = max(0.3, state.cube.get('scale', 1.0) / 1.12)
             elif ord('0') <= key <= ord('9'):
                 state.active_effect = key - ord('0')
 
-            # Calculate FPS
             fps_frame_count += 1
             elapsed = time.time() - fps_prev_time
             if elapsed >= 0.5:
