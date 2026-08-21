@@ -2,7 +2,7 @@
   <tr>
     <td align="center" bgcolor="#1A1C23" style="padding: 40px; border-radius: 8px;">
       <h1><font color="#FFFFFF">OpenCV Hand Tricks & Effects</font></h1>
-      <p><font color="#A0AEC0">Dynamic real-time hand tracking visualizer and effects engine built with Python and MediaPipe.</font></p>
+      <p><font color="#A0AEC0">Dynamic real-time hand tracking visualizer and holographic 3D effects engine built with Python and MediaPipe.</font></p>
     </td>
   </tr>
 </table>
@@ -30,72 +30,97 @@ The application supports multiple interactive, eye-catching hand effects that yo
 
 *For full details on the visual effects, see [FEATURES.md](readme/FEATURES.md).*
 
-## New Interactive Features
+---
 
-- `O` : Toggle hand outline/lines off/on (useful for a cleaner silhouette).
-- `M` : Toggle the **holographic 3D object** overlay anchored to your palm; pinch (thumb + index finger) to grab it, rotate it freely on the X and Y axes, and zoom it in/out — Tony Stark / Iron-Man style.
-- `N` : Cycle to the next 3D hologram object. Hold `Shift` (`N` uppercase) to go to the previous one.
-- `P` : Toggle pinch-to-zoom (digital camera zoom centered on hand/palm).
-- `W` : Start a simple WebSocket streamer on port 8765 to broadcast landmarks as JSON for remote 3D clients or devices.
+## 🌀 100% Keyboard-Free 3D Hologram Experience (Iron-Man Mode)
 
-These features are additive and do not remove or change the original visual effects — they provide additional interactivity and integration points.
+You no longer need to touch any keyboard buttons to summon, manipulate, rotate, tilt, or zoom holograms! The entire 3D hologram system is operated directly with **natural hand gestures** and **on-screen touchable/clickable controls**.
 
-### Holding & rotating 3D holograms (Iron-Man mode)
+Powered by [`hologram3d.py`](hologram3d.py), a real-time 3D wireframe engine featuring full 3-axis rotation ($R_x, R_y, R_z$), perspective projection, depth-based glow shading, holographic projector base disk, and ascending laser emitter beams.
 
-Press `M` to summon a glowing wireframe hologram that floats above your palm. It's powered by [`hologram3d.py`](hologram3d.py), a small real-time 3D engine (real rotation matrices + perspective projection, not a fake sprite) with depth-based glow shading and a holographic "projector disc" base.
+### ✋ Natural Hand Gestures:
 
-**Grab it and move it:** pinch your thumb and index finger together near the object to grab it. While grabbed it follows your fingertip.
+1. **Pick Up & Place Anywhere (Drag-and-Drop):**
+   - Pinch your thumb and index finger together near the hologram to pick it up.
+   - Move your hand anywhere on screen — the hologram follows your movement with glowing magnetic tractor beams.
+   - Open your fingers to release: the hologram **stays right where you placed it**, floating in mid-air with gentle physics coasting rather than snapping back.
+   - Reach out and pinch near it again anytime to pick it back up and move it somewhere else!
 
-**Rotate it 360° on X and Y:** while grabbed, moving your hand left/right spins the object around the Y-axis and moving it up/down tilts it around the X-axis. Rotation is unbounded, so you can keep spinning it past 360° in either direction, continuously, on both axes at once — just like spinning a hologram in mid-air.
+2. **360° Free Tilt, Spin & Rotation (All Axes):**
+   - **Translation Drag:** Moving your grabbing hand left/right spins the hologram 360° around the Y-axis; moving up/down tilts it 360° around the X-axis.
+   - **3D Wrist Pose:** Tilting or twisting your wrist in 3D space rotates the hologram matching your hand's orientation in real-time.
+   - **Inertia Momentum:** Releasing the hologram while moving imparts momentum, letting it spin 360° freely and smoothly before settling.
 
-**Zoom in and out:** two ways to zoom, and they both work at once:
-1. **Pull-to-zoom (one hand):** once grabbed, pull your hand closer to the camera to zoom the object in, or push it away to zoom out — the app estimates distance from how large your hand appears on screen.
-2. **Two-hand pinch spread:** show both hands and move them apart to zoom in, or bring them together to zoom out (same gesture as a phone's pinch-to-zoom).
+3. **Zoom In and Out (Depth & Pinch Scaling):**
+   - **Single-Hand Pull/Push:** Pull your grabbing hand closer to the camera to zoom in; push it away to zoom out.
+   - **Two-Hand Spread Zoom:** Bring both hands into view and move them apart to enlarge the hologram, or bring them together to shrink it.
+   - **Mouse Scroll:** Mouse scroll-wheel also fine-tunes zoom when needed.
 
-You can also fine-tune manually from the keyboard: `[` / `]` spin on Y, `;` / `'` tilt on X, `=` / `-` zoom in/out, and a mouse scroll-wheel also zooms while the hologram is active.
+4. **Recall / Snap to Palm:**
+   - Hold an open flat palm directly beneath the hologram to gently summon it back above your palm.
 
-**Switch objects:** press `N` to cycle through the object library — **Cube, Globe, Human, Car, Plane, Building, Pyramid,** and **Atom** — each with its own holographic tint. New objects can be added by dropping a new model builder into `hologram3d.py` (see [CODE_STRUCTURE.md](readme/CODE_STRUCTURE.md)).
+5. **On-Screen Touchable Quick Bar:**
+   - Tap buttons with your index fingertip (or mouse click):
+     - `[3D HOLO]` : Turn hologram overlay ON / OFF.
+     - `[ < ]` / `[ > ]` : Cycle to previous/next 3D model.
+     - `[ RECALL ]` : Center and recall hologram.
+     - `[ SPIN ]` : Toggle ambient idle 360° auto-revolving.
 
-Other notes:
+---
 
-- The hologram supports inertia: release a grabbed object and it will keep spinning/coasting and slowly settle.
-- Snap-to-palm brings the object back when it nears your palm for easier control.
-- Depth-based shading (nearer wireframe edges glow brighter, farther edges dim) makes the rotation read clearly in 3D.
-- When the hologram or pinch zoom is active, palm skeletal lines are suppressed for a cleaner appearance.
+## 🎨 3D Hologram Model Catalog (16 Sci-Fi Models)
+
+| Icon | Model | Description | Hologram Tint |
+| :--- | :--- | :--- | :--- |
+| 🚀 | **Rocket** | Multi-stage aerospace rocket with nose cone, fuselage rings, 4 swept delta stabilizer fins, nozzle bell, and glowing thrust flame plume. | Blaze Solar Amber |
+| 🏠 | **House** | 3D architectural house with pitched gable roof, ridge beam, chimney, front door frame, cross-pane windows, and foundation perimeter. | Golden Amber Sand |
+| 🧊 | **Tesseract** | Sci-Fi 4D Hypercube: concentric outer and inner cubes connected with hyper-struts and a central singularity core node. | Electric Cyan |
+| 🌐 | **Globe** | Holographic Earth with latitude/longitude grid, equator ring, and a tilted orbital satellite ring with an orbiting satellite. | Aqua Teal |
+| 🧍 | **Human** | Cybernetic humanoid android with visor helmet cage, articulated ribcage/spine, pelvis, limbs, and glowing joint hubs. | Neon Magenta |
+| 🚗 | **Cyber Car** | Futuristic sports car with aerodynamic cabin, fastback roof, rear wing spoiler, front bumper/headlights, and 3D spoked wheel cylinders. | Vermilion Red |
+| ✈️ | **Stealth Jet** | Supersonic stealth fighter jet with radome needle nose, cockpit bubble canopy, delta wings with wingtip missiles, canted twin fins, and afterburners. | Electric Sky Azure |
+| 🏢 | **Skyscraper** | Cyber metropolis skyscraper with tiered floors, diagonal structural lattice bracing, glass elevator column, crown spire, and radio beacon antenna. | Ice Cool Cyan |
+| 🔺 | **Pyramid** | Stepped Stargate hologram pyramid with multi-tier terraces, foundation perimeter, glowing apex capstone, and internal energy conduit. | Pharaoh Gold |
+| ⚛️ | **Quantum Atom** | Multi-orbital atom with 4 tilted electron shells, valence electron nodes, and an octahedron nucleus core. | Electric Lime |
+| 🛸 | **Star Cruiser** | Sci-fi starship with forward command saucer, bridge dome, secondary engineering hull, deflector dish, and twin warp nacelles. | Quantum Cobalt |
+| 💎 | **Diamond** | Faceted brilliant-cut 3D gemstone with table facet, crown kite facets, girdle ring, and pavilion converging to a sharp culet point. | Crystal Aquamarine |
+| 🧬 | **DNA Helix** | Double-helix spiral strand with intertwined backbones connected by nucleotide base-pair rungs. | Magenta-Violet |
+| 🫀 | **Cyber Heart** | 3D faceted cyberpunk anatomical heart with ventricle curves, atrium chambers, and curved aortic arch conduit. | Pulsing Crimson |
+| 🚁 | **Tactical Drone** | High-tech quadcopter with central fuselage pod, 4 carbon-fiber arms, 4 rotor discs, landing skids, and forward camera gimbal. | Emerald Green |
+| 🛰️ | **Satellite** | Space satellite with cuboid instrument bus, dual solar panel arrays with individual grid cells, and parabolic dish antenna. | Solar Deep Cyan |
 
 ---
 
 ## Photo Capture & Video Recording
 
 The project has interactive buttons drawn at the top-right corner of the stream window:
-* Click the **Camera Icon** or press the **`C`** key to take a snapshot. Saves as a PNG image.
-* Click the **Record Dot** or press the **`V`** key to toggle video recording. Saves as an XVID AVI video.
-* All saved media is automatically created and stored inside the `captures/` folder in the project root.
+* Click the **Camera Icon** (or touch with index finger / press **`C`**) to take a snapshot. Saves as a PNG image in `captures/`.
+* Click the **Record Dot** (or touch with index finger / press **`V`**) to toggle AVI video recording in `captures/`.
 * Sound feedback (shutter beep, recording start/stop beeps) is played in the background when triggers occur.
 
 ---
 
-## Live Keyboard Controls
+## Live Keyboard Controls (Secondary Fallbacks)
 
-Configure and customize settings in real-time during execution using the following key bindings:
+While the hologram and interface can be operated 100% keyboard-free, convenient keyboard shortcuts are available:
 
 | Command Key | Action | Details |
 | :--- | :--- | :--- |
 | **`0` - `9`** | Switch Effect | Select visual effect 0 through 9. |
+| **`M`** | Toggle 3D Hologram | Summons/dismisses the 3D hologram overlay. |
+| **`N`** | Next Hologram Object | Cycles through the 16 3D models (`Shift+N` goes backwards). |
+| **`O`** | Toggle Hand Outline | Hides/shows the hand skeleton lines for a cleaner silhouette. |
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
-| **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality) while safely restarting camera feeds. |
-| **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (low-CPU blur), **Standard Glow**, and **Glow Off**. |
-| **`F`** | Toggle Fullscreen | Maximizes the window to borderless fullscreen or scales back to windowed mode. |
+| **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality). |
+| **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow**, **Standard Glow**, and **Glow Off**. |
+| **`F`** | Toggle Fullscreen | Maximizes window to borderless fullscreen or standard windowed mode. |
 | **`C`** | Take Screenshot | Saves the current screen frame to the `captures/` directory. |
 | **`V`** | Toggle Video Record | Toggles AVI video recording to the `captures/` directory. |
-| **`O`** | Toggle Hand Outline | Hides/shows the hand skeleton lines for a cleaner silhouette. |
-| **`M`** | Toggle 3D Hologram | Summons the holographic object; pinch to grab, rotate on X/Y, and zoom in/out. |
-| **`N`** | Next Hologram Object | Cycles Cube → Globe → Human → Car → Plane → Building → Pyramid → Atom. `Shift+N` goes back. |
-| **`P`** | Toggle Pinch-Zoom | Enables/disables the digital camera zoom driven by a pinch gesture. |
+| **`P`** | Toggle Pinch-Zoom | Enables/disables the digital camera zoom. |
 | **`[` `]`** | Spin Hologram (Y-axis) | Manually rotates the active hologram left/right. |
 | **`;` `'`** | Tilt Hologram (X-axis) | Manually rotates the active hologram up/down. |
-| **`=` `-`** | Zoom Hologram | Manually zooms the active hologram in/out (mouse scroll-wheel also works). |
-| **`W`** | Toggle WebSocket Server | Broadcasts hand landmarks as JSON on port 8765 for remote/3D clients. |
+| **`=` `-`** | Zoom Hologram | Manually zooms the active hologram in/out. |
+| **`W`** | Toggle WebSocket Server | Broadcasts hand landmarks as JSON on port 8765 for remote 3D clients. |
 | **`Q`** | Quit / Exit | Closes all open windows and releases camera hardware resources. |
 
 ---
@@ -106,7 +131,7 @@ Configure and customize settings in real-time during execution using the followi
 
 **macOS/Linux:** Run `bash RUN.sh`
 
-**Or see [QUICK_START.md](QUICK_START.md) for detailed options.**
+**Or see [QUICK_START.md](readme/QUICK_START.md) for detailed options.**
 
 ---
 
@@ -114,23 +139,17 @@ Configure and customize settings in real-time during execution using the followi
 
 Follow these steps to get a copy of this project running on your local machine using an isolated virtual environment (`.venv`).
 
-> **Python Version Requirement:** MediaPipe only supports **Python 3.8 – 3.12**. Python 3.13 and 3.14 will **not** work. If you don't have Python 3.12, install it via `winget install Python.Python.3.12` or download from [python.org](https://www.python.org/downloads/release/python-3129/).
+> **Python Version Requirement:** MediaPipe supports **Python 3.8 – 3.12**.
 
 ### 1. Clone the Repository
-Copy the project to your local machine:
 ```bash
 git clone <your-repository-url>
 cd "Hand Tricks"
 ```
 
 ### 2. Create the Virtual Environment
-Create an isolated `.venv` space using **Python 3.12**:
 ```bash
-# Windows (if Python 3.12 is your default)
 python -m venv .venv
-
-# Windows (if you have multiple Python versions, use full path)
-"C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python312\python.exe" -m venv .venv
 ```
 
 ### 3. Activate the Virtual Environment
@@ -151,86 +170,6 @@ pip install -r requirements.txt
 ```
 
 ### 5. Launch the Application
-Ensure the virtual environment is activated and execute:
 ```bash
 python main.py
 ```
-
-Choose your camera index from the launcher UI, and press **Q** on your keyboard to exit at any time.
-
-### IDE-Specific Instructions
-For detailed instructions on running this project in **VS Code**, **PyCharm**, **Sublime Text**, **IDLE**, or **terminal**, see the [IDE Setup Guide](readme/IDE_SETUP_GUIDE.md).
-
----
-
-## Recent Bug Fixes
-
-**Fixed in Latest Update:**
-  - **Recording Indicator Typo** (Line 853, main.py)
-  - **Issue:** On-screen text displayed `"● RECING"` instead of `"● RECORDING"` during video capture
-  - **Fix:** Corrected text to `"● RECORDING"`
-  - **Impact:** Improved UI clarity during video recording
-
-For full changelog and version history, see [CHANGELOG.md](readme/CHANGELOG.md).
-
----
-
-## Hardware Optimizations
-
-This project incorporates optimization techniques to run efficiently on low-spec hardware:
-1. **Video Mode Landmark Tracking:** Restricts full-frame object detection passes to avoid CPU bottlenecks.
-2. **Pre-allocated Frame Pools:** Cuts memory footprint and removes garbage collection stutters.
-3. **Downscaled Gaussian Blurring:** Calculates glows at a 4x lower resolution, achieving a **3.0x speedup** on blur pipelines.
-4. **Desktop Hardware Scaling:** Automatically scales the processed image to fill any fullscreen layout window, leveraging GPU window rendering instead of high-CPU capture resizing.
-
----
-
-## Documentation
-
-The project includes comprehensive documentation for various aspects:
-
-| Document | Purpose |
-| :--- | :--- |
-| **[CHANGELOG.md](readme/CHANGELOG.md)** | Version history, bug fixes, and feature releases |
-| **[CODE_STRUCTURE.md](readme/CODE_STRUCTURE.md)** | Deep dive into code architecture, class/function reference, and performance optimizations |
-| **[DEVELOPMENT.md](readme/DEVELOPMENT.md)** | Guide for developers: adding effects, code style, debugging, testing, and profiling |
-| **[TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md)** | Common issues, solutions, and optimization tips |
-| **[FEATURES.md](readme/FEATURES.md)** | Detailed descriptions of all 10 visual effects |
-| **[IDE_SETUP_GUIDE.md](readme/IDE_SETUP_GUIDE.md)** | IDE-specific setup instructions (VS Code, PyCharm, Sublime, IDLE, Terminal) |
-
----
-
-## Quick Troubleshooting
-
-| Issue | Solution |
-| :--- | :--- |
-| **"ModuleNotFoundError: No module named 'mediapipe'"** | Activate virtual environment: `.\.venv\Scripts\Activate.ps1` (Windows) or `source .venv/bin/activate` (Unix) |
-| **Python 3.13+ installation fails** | MediaPipe only supports Python 3.8–3.12. Install Python 3.12 first. |
-| **Very low FPS (< 10 Hz)** | Press **R** for 360p, press **B** for Optimized Glow, press **D** to hide HUD |
-| **Hand detection not working** | Improve lighting, check hand_landmarker.task exists, adjust confidence thresholds in main.py |
-| **Videos won't play** | Ensure XVID codec installed (K-Lite Codec Pack on Windows) |
-| **No audio on Windows** | Check volume levels, unmute speaker, verify audio device enabled |
-
-For more detailed troubleshooting, see [TROUBLESHOOTING.md](readme/TROUBLESHOOTING.md).
-
----
-
-## Buy me a coffee
-Donate some money to support my work.  <br>Thank you! :)
-<br>
-<br>
-
->Click the button below to donate:
-
-<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
-  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
-</a>
-<br>
-<br>
-<br>
-
->Or scan this QR Code to donate:
-
-<p align="center" >
-  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
-</p>

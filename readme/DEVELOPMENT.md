@@ -1,29 +1,51 @@
-## New Interactive Features
+## Development & Architecture Guide
 
-When developing or extending the project, note the following new interactive features:
+When developing, customizing, or extending the **Hand Tricks** project, review the following architecture notes:
 
-- `O`: Toggle hand outline/lines rendering.
-- `M`: Toggle the holographic 3D object overlay (palm anchored). Pinch to grab, rotate 360 on X/Y, and zoom in/out.
-- `N`: Cycle the active hologram object (`Shift+N` for the previous). See `hologram3d.MODEL_ORDER`.
-- `P`: Toggle pinch zoom behavior.
-- `W`: Start/stop the WebSocket landmark broadcaster for remote clients.
+### 1. Codebase Structure & Modules
 
-These are implemented in `main.py` (gesture/state handling and rendering call-out) and `hologram3d.py` (the 3D model builders, rotation math, projection, and wireframe renderer); the lightweight server is `ws_server.py`.
+- **`main.py`**:
+  - Core entry point, camera capture loop, and MediaPipe inference pipeline.
+  - State machine (`AppState`) managing visual effects, physics velocity vectors, gesture detection, touch UI button dwell timers, and recording.
+  - Interactive gesture engine: pick-up/drop placement, 360° drag rotation, 3D hand orientation tracking, depth zooming, and open-palm recall.
+  - Audio synthesizer background threads (`winsound`).
 
-### Hologram Interaction Implementation Notes
+- **`hologram3d.py`**:
+  - Standalone, high-performance 3D holographic engine requiring only NumPy and OpenCV.
+  - 16 procedural 3D model builders (Rocket, House, Tesseract, Globe, Human, Car, Plane, Building, Pyramid, Atom, Spaceship, Diamond, DNA, Heart, Drone, Satellite).
+  - Full 3-axis rotation matrix math (`rotate_xyz(v, rx, ry, rz)`) for pitch, yaw, and roll.
+  - Perspective camera projection (`project(v, center, pixel_size, focal)`).
+  - Depth-shaded wireframe renderer with holographic projector disc base, ascending emitter laser lines, and glowing vertex hubs.
 
-- Rotation: Implemented by tracking the index fingertip delta while the hologram is grabbed. Horizontal movement maps to `rot_y`, vertical to `rot_x`. Both are stored **unbounded** (not wrapped to 0-360) in `AppState.cube['rot_x'] / ['rot_y']`, so the object can keep spinning continuously past a full turn on either axis.
-- Zoom: Implemented three ways, all feeding `cube['scale']` / `cube['size']`: (1) single-hand pull-to-zoom, which compares the current on-screen span of the grabbing hand (wrist to middle-fingertip) against `AppState.holo_grab_span` from the previous frame; (2) two-hand distance driven automatic scaling; (3) manual keyboard (`=`/`-`) and mouse scroll-wheel scaling via `mouse_callback()`.
-- Rendering: `draw_hologram_object()` in `main.py` calls `hologram3d.render_hologram()`, which rotates the model's vertices with `rotate_xy()`, projects them with `project()`, and draws depth-shaded wireframe edges + glowing vertex nodes onto the canvas.
-- Adding a new object: write a `make_x()` builder in `hologram3d.py` returning `(vertices, edges)` (or `(vertices, edges, extra)`), then register it in `_BUILDERS`, `MODEL_ORDER`, `MODEL_LABELS`, and `MODEL_COLORS`. No changes to `main.py` are required.
-
-### Inertia & Snapping
-
-- When the hologram is released it preserves last motion/rotation velocity for a short time and decays using `cube['damping']`.
-- When the hologram is close to the palm center it gently snaps toward the palm using `cube['snap_speed']` and reduces velocities.
+- **`ws_server.py`**:
+  - Lightweight async WebSocket server broadcasting raw 3D landmark data as JSON on `ws://0.0.0.0:8765`.
 
 ---
 
+### 2. Hologram Interaction Implementation Details
+
+- **Pick-and-Place Physics:**
+  - When the user pinches near the hologram, `state.grabbed` becomes `True` and `state.cube['is_placed']` is set to `True`.
+  - While grabbed, the hologram follows hand coordinates directly.
+  - On release, the hologram preserves its position $(x, y)$ with decaying inertial velocities (`cube['damping']`), staying exactly where the user placed it rather than snapping back.
+  - Re-grabbing can occur anywhere on the canvas by reaching toward the hologram and pinching.
+
+- **360° Tilt & Rotation Math:**
+  - *Drag Delta:* Fingertip movement translates directly into angular velocity ($R_y$ yaw and $R_x$ pitch). Angles are stored **unbounded** in `state.cube['rot_x']` and `state.cube['rot_y']`, allowing infinite 360° continuous spinning.
+  - *3D Wrist Pose:* `estimate_hand_orientation()` computes 3D Euler angles from the landmark plane (wrist, index MCP, middle MCP, pinky MCP). Tilting or twisting the hand applies delta rotations to $R_x, R_y, R_z$.
+  - *Auto-spin:* When idle, `state.cube['auto_spin']` applies a gentle $+0.55^\circ/\text{frame}$ ambient revolution.
+
+- **Zoom Scaling Modes:**
+  - *Single-Hand Depth Zoom:* Compares the on-screen span of the grabbing hand (wrist to middle-fingertip) against `state.holo_grab_span`.
+  - *Two-Hand Spread Zoom:* Scales dynamically based on inter-hand distance ($w_1$ to $w_2$).
+  - *Desktop Wheel / Keys:* Mouse scroll-wheel and keyboard shortcuts (`=` / `-`) provide fallback scaling.
+
+- **Adding a New 3D Hologram Model:**
+  1. Write a `make_yourmodel()` builder function in `hologram3d.py` returning `(vertices, edges)` or `(vertices, edges, extra)` with vertices normalized in the range $[-1.0, 1.0]$.
+  2. Register the builder in `_BUILDERS`, `MODEL_ORDER`, `MODEL_LABELS`, and `MODEL_COLORS`.
+  3. No changes to `main.py` are required; it will automatically appear in the cyclic library!
+
+---
 
 ## Buy me a coffee
 Donate some money to support my work.  <br>Thank you! :)

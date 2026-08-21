@@ -1,177 +1,133 @@
-## New Features (Added)
-
-- Toggle hand outline visibility with the `O` key.
-- Summon a **holographic 3D object** anchored to the palm with the `M` key; pinch to grab it, rotate it 360° on both axes, and zoom it in/out (see below).
-- Cycle through the 3D object library with the `N` key (`Shift+N` to go backwards).
-- Pinch-to-zoom (digital zoom) is enabled by default; toggle with the `P` key.
-- Start a lightweight WebSocket landmark broadcaster (ws://0.0.0.0:8765) with the `W` key.
-
-These additions extend the interactivity while keeping existing visual effects unchanged.
-
-### 🌀 Holographic 3D Objects (Iron-Man Mode)
-
-Press `M` to bring up a glowing wireframe hologram floating above your palm, powered by the standalone [`hologram3d.py`](../hologram3d.py) engine — real 3D rotation matrices and perspective projection (not a flat sprite), with depth-based glow shading and a holographic "projector disc" base under the object.
-
-**Object library (cycle with `N` / `Shift+N`):**
-
-| Object | Description |
-| :--- | :--- |
-| 🧊 **Cube** | The original wireframe box, now with true 3D depth shading. |
-| 🌐 **Globe** | A latitude/longitude wireframe sphere — spin it like a holographic Earth. |
-| 🧍 **Human** | A humanoid stick-figure skeleton (head to feet). |
-| 🚗 **Car** | A wireframe car body, cabin, and four wheels. |
-| ✈️ **Plane** | A fuselage, wing pair, and tail fin built from tapered rings. |
-| 🏢 **Building** | A multi-floor tower with a rooftop antenna. |
-| 🔺 **Pyramid** | A simple four-sided pyramid. |
-| ⚛️ **Atom** | Three tilted electron-orbit rings around a nucleus. |
-
-New objects can be added by writing a small model-builder function in `hologram3d.py` (see [CODE_STRUCTURE.md](CODE_STRUCTURE.md)) — no changes to `main.py` are needed beyond that.
-
-**Grab, rotate, and zoom:**
-- **Grab & move:** pinch your thumb and index finger together near the hologram to grab it; it follows your fingertip while grabbed.
-- **Rotate 360° on X and Y:** while grabbed, moving your hand left/right spins the object around the Y-axis, and moving it up/down tilts it around the X-axis. Rotation is unbounded — you can keep spinning continuously past 360° on either axis, at the same time.
-- **Zoom in/out two ways:** pull your grabbing hand closer to the camera to zoom in (and push it away to zoom out), based on how large your hand appears on screen — or show both hands and spread them apart / bring them together, like a phone's pinch-to-zoom. Both work simultaneously.
-- **Keyboard fallback:** `[` / `]` spin Y, `;` / `'` tilt X, `=` / `-` zoom, and the mouse scroll-wheel also zooms while the hologram is active.
-
-Enhancements:
-
-- Inertia: when you release a grabbed hologram it keeps spinning/coasting and decays naturally using damping.
-- Snap-to-palm: if the hologram gets close to your palm it gently snaps back and stabilizes.
-- Depth-shaded wireframe: edges nearer the camera render brighter and thicker, edges farther away dim — this is what makes the 360° rotation read clearly as real 3D rather than a flat shape.
-- Each object has its own holographic tint color (cyan-gold globe, violet human, orange-red car, etc).
-- When the hologram or pinch-zoom is active, the palm skeletal lines are suppressed to give a cleaner silhouette.
-
-
 # 🚀 Hand Tricks - Feature Documentation
 
-This document describes all features, interactive keyboard controls, performance optimizations, and technical details of the **Hand Tricks** visual application.
+This document describes all features, interactive gestures, holographic 3D objects, performance optimizations, and technical details of the **Hand Tricks** visual application.
 
 ---
 
-## 🎨 Interactive Visual Effects
+## 🌀 Keyboard-Free 3D Hologram System (Iron-Man Mode)
 
-You can toggle between different eye-catching effects in real-time by pressing the corresponding number keys (`0` to `9`) on your keyboard.
+The application features a complete **gesture-driven holographic 3D wireframe engine** (`hologram3d.py`) allowing full keyboard-free interaction. You can summon, grab, move & place anywhere on screen, rotate & tilt 360° continuously, and zoom in/out with your hands.
+
+### ✋ Natural Hand Gestures & Controls
+
+- **Pick Up & Place Anywhere (Drag & Drop):**
+  Pinch your thumb and index finger together near the hologram to pick it up. Drag it anywhere across the webcam screen. When you release the pinch, the hologram **remains right where you dropped it** in 3D space, with natural inertial coasting. You can reach out and pick it up again at any time.
+
+- **Continuous 360° Free Tilt & Rotation:**
+  - *Translation Drag:* Moving your grabbing hand left/right spins the hologram 360° continuously around the Y-axis (yaw); moving it up/down tilts it 360° around the X-axis (pitch). Rotation is unbounded.
+  - *3D Wrist Orientation:* MediaPipe calculates the 3D plane and normal vector of your hand. Tilting or twisting your wrist in 3D space directly tilts and turns the hologram to mirror your hand.
+  - *Inertial Coasting:* Flicking and releasing the hologram imparts momentum, causing it to spin and glide smoothly in mid-air before damping down.
+
+- **Zoom In and Out (Depth & Pinch Scaling):**
+  - *Single-Hand Depth Zoom:* Pull your grabbing hand closer to the camera to enlarge the hologram; push it away to shrink it.
+  - *Two-Hand Spread Zoom:* Bring both hands into view and move them apart to scale the hologram up, or bring them together to scale it down.
+  - *Mouse Scroll:* The mouse scroll-wheel also scales the hologram when active.
+
+- **Open-Palm Recall:**
+  Holding an open flat palm directly beneath the hologram smoothly summons it back to float above your palm.
+
+- **On-Screen Touchable HUD Widget:**
+  Tap on-screen buttons with your index fingertip (or click with mouse):
+  - `[3D HOLO]` : Turn hologram overlay ON / OFF.
+  - `[ < ]` / `[ > ]` : Cycle between the 16 3D models.
+  - `[ RECALL ]` : Center and recall hologram.
+  - `[ SPIN ]` : Toggle ambient 360° auto-revolving.
+
+---
+
+## 🎨 3D Hologram Model Catalog (16 Sci-Fi Models)
+
+| Icon | Model | Description | Hologram Tint |
+| :--- | :--- | :--- | :--- |
+| 🚀 | **Rocket** | Multi-stage aerospace rocket with nose cone, fuselage rings, 4 swept delta stabilizer fins, nozzle bell, and glowing thrust flame plume. | Blaze Solar Amber |
+| 🏠 | **House** | 3D architectural house with pitched gable roof, ridge beam, chimney, front door frame, cross-pane windows, and foundation perimeter. | Golden Amber Sand |
+| 🧊 | **Tesseract** | Sci-Fi 4D Hypercube: concentric outer and inner cubes connected with hyper-struts and a central singularity core node. | Electric Cyan |
+| 🌐 | **Globe** | Holographic Earth with latitude/longitude grid, equator ring, and a tilted orbital satellite ring with an orbiting satellite. | Aqua Teal |
+| 🧍 | **Human** | Cybernetic humanoid android with visor helmet cage, articulated ribcage/spine, pelvis, limbs, and glowing joint hubs. | Neon Magenta |
+| 🚗 | **Cyber Car** | Futuristic sports car with aerodynamic cabin, fastback roof, rear wing spoiler, front bumper/headlights, and 3D spoked wheel cylinders. | Vermilion Red |
+| ✈️ | **Stealth Jet** | Supersonic stealth fighter jet with radome needle nose, cockpit bubble canopy, delta wings with wingtip missiles, canted twin fins, and afterburners. | Electric Sky Azure |
+| 🏢 | **Skyscraper** | Cyber metropolis skyscraper with tiered floors, diagonal structural lattice bracing, glass elevator column, crown spire, and radio beacon antenna. | Ice Cool Cyan |
+| 🔺 | **Pyramid** | Stepped Stargate hologram pyramid with multi-tier terraces, foundation perimeter, glowing apex capstone, and internal energy conduit. | Pharaoh Gold |
+| ⚛️ | **Quantum Atom** | Multi-orbital atom with 4 tilted electron shells, valence electron nodes, and an octahedron nucleus core. | Electric Lime |
+| 🛸 | **Star Cruiser** | Sci-fi starship with forward command saucer, bridge dome, secondary engineering hull, deflector dish, and twin warp nacelles. | Quantum Cobalt |
+| 💎 | **Diamond** | Faceted brilliant-cut 3D gemstone with table facet, crown kite facets, girdle ring, and pavilion converging to a sharp culet point. | Crystal Aquamarine |
+| 🧬 | **DNA Helix** | Double-helix spiral strand with intertwined backbones connected by nucleotide base-pair rungs. | Magenta-Violet |
+| 🫀 | **Cyber Heart** | 3D faceted cyberpunk anatomical heart with ventricle curves, atrium chambers, and curved aortic arch conduit. | Pulsing Crimson |
+| 🚁 | **Tactical Drone** | High-tech quadcopter with central fuselage pod, 4 carbon-fiber arms, 4 rotor discs, landing skids, and forward camera gimbal. | Emerald Green |
+| 🛰️ | **Satellite** | Space satellite with cuboid instrument bus, dual solar panel arrays with individual grid cells, and parabolic dish antenna. | Solar Deep Cyan |
+
+---
+
+## 🎨 Interactive Visual Effects (0–9)
+
+Switch between real-time effects by pressing `0` through `9`:
 
 ### 0️⃣ Standard Glow (Classic Mode)
-* **Description:** Draws skeletal bones and circular joint nodes within each hand independently. The bones glow with a dynamic color that transitions smoothly from green, to blue, and then red, depending on the relative physical distance between your hands. No lines cross between the two hands.
-* **Aesthetic style:** Premium neon skeletal glow.
+- **Description:** Draws skeletal bones and circular joint nodes within each hand independently. The bones glow with a dynamic color that transitions smoothly from green to blue and red depending on hand distance.
+- **Aesthetic style:** Premium neon skeletal glow.
 
 ### 1️⃣ Inversion Portal (Negative Box)
-* **Description:** Detects the boundary of your hand and creates a rectangular portal framing it. Inside the bounding box, all image colors are inverted to their negative equivalents. The border of the box pulses dynamically with a high-contrast neon corner HUD styling. (Optimized with a minimum thickness safety floor to prevent rendering errors).
-* **Best use case:** High-contrast environments.
+- **Description:** Detects the boundary of your hand and creates a rectangular portal framing it. Inside the bounding box, all image colors are inverted to their negative equivalents, framed by high-contrast corner HUD brackets.
+- **Best use case:** High-contrast environments.
 
 ### 2️⃣ Energy Pulse (Lightning Core)
-* **Description:** Jagged lightning-bolt arcs and electric sparks discharge radially from the fingertips of both hands. The jaggedness, intensity, and length of the discharges dynamically scale with the speed of your hand movements. All discharges are self-contained on each hand, meaning no lines connect the two hands.
-* **Best use case:** Fast and expressive hand waves.
+- **Description:** Jagged lightning-bolt arcs and electric sparks discharge radially from fingertips, scaling dynamically with hand movement velocity.
+- **Best use case:** Fast and expressive hand waves.
 
 ### 3️⃣ Motion Ghost Trail (Afterimage)
-* **Description:** Your movements leave a fading trail of past frames behind them. Hand joints and skeletal bone connectors from prior positions fade out gracefully using an exponential decay opacity model. The trail shifts color (violet to pink) as it ages.
-* **Best use case:** Slow, graceful hand motions.
+- **Description:** Your movements leave a fading trail of past frames behind them. Hand joints and skeletal connectors from prior positions fade out gracefully using an exponential decay opacity model.
+- **Best use case:** Slow, graceful hand motions.
 
 ### 4️⃣ Particle Shower (Magical Sparkles)
-* **Description:** Fingertips emit glowing neon particles that stream upward and fall back down under simulated gravity. The number of spawned particles scales with hand velocity. The particles gradually shrink and fade away over time.
-* **Best use case:** Dynamic gestures, drawing loops.
+- **Description:** Fingertips emit glowing neon particles that stream upward and fall back down under simulated gravity.
+- **Best use case:** Dynamic gestures, drawing loops.
 
 ### 5️⃣ Ripple Distortion (Liquid/Warp)
-* **Description:** The webcam frame behaves like a liquid surface. Moving your hand creates local circular ripples and lens distortions that radiate outward from your hand's center (MCP joint). The wave amplitude increases when you move your hand quickly.
-* **Best use case:** Interactive wave gestures.
+- **Description:** The webcam frame behaves like a liquid surface. Moving your hand creates local circular ripples and lens distortions that radiate outward from your palm.
+- **Best use case:** Interactive wave gestures.
 
 ### 6️⃣ Thermal Vision (Heat Mapping)
-* **Description:** Transforms the frame into a hot infrared thermal visualization using a colormap. The hand joints act as heat sources, making the hands glow white/yellow/red, while the background shifts to cold, darkened blue.
-* **Best use case:** Creating a sci-fi/high-tech radar aesthetic.
+- **Description:** Transforms the frame into a hot infrared thermal visualization. Hand joints act as heat sources glowing yellow/red against a cool blue background.
+- **Best use case:** High-tech radar / sci-fi aesthetics.
 
 ### 7️⃣ Particle Orbit (Gravity Well)
-* **Description:** Creates concentric rings of glowing sparks that orbit around the center of each hand (MCP joint). The orbit speed and radius dynamically swell and contract based on the hand's speed. The hand center itself pulses with a glowing core.
-* **Best use case:** Slow circular motions or magical spell-casting poses.
+- **Description:** Concentric rings of glowing sparks orbit around the center of each hand like gravitational fields.
+- **Best use case:** Circular motions and spell-casting poses.
 
 ### 8️⃣ Digital Rain Aura (Matrix Proximity)
-* **Description:** Matrix-style streams of binary characters and alphanumeric code drift upwards from your hand joints. The characters scale down and dissolve as they ascend, wrapping your hands in a green digital aura.
-* **Best use case:** Futuristic digital display demos.
+- **Description:** Matrix-style streams of binary characters and alphanumeric code drift upwards from your hand joints.
+- **Best use case:** Futuristic digital display demos.
 
-### 9️⃣ Goku Power Core (Super Saiyan & Kamehameha) - *NEW*
-* **Description:** A flaming gold Super Saiyan aura rises from all 21 hand joints. If both hands are brought close together (distance < 240px), a massive glowing cyan Kamehameha energy ball forms between your palms. The core crackles with energy, and high-voltage lightning charges into it from both hands, accompanied by a synthesizer charging sound sweep.
-* **Best use case:** High-energy martial arts / cosplay presentations.
+### 9️⃣ Goku Power Core (Super Saiyan & Kamehameha)
+- **Description:** A flaming gold Super Saiyan aura rises from all 21 hand joints. When both hands are brought close together, a massive glowing cyan Kamehameha energy ball forms between your palms with electric arcing and sound synthesis.
+- **Best use case:** High-energy cosplay presentations.
 
 ---
 
 ## 📷 Photo Capture & Video Recording Systems
 
-The application includes on-screen touch/click buttons in the top-right corner, backed by keyboard hotkeys:
-
-### On-Screen Interface
-* **📷 Photo Button (Left):** Click to capture the current frame. Saves as `captures/capture_YYYYMMDD_HHMMSS.png` with a shutter sound beep.
-* **🔴 Record Button (Right):** Click to toggle video recording. Saves as `captures/recording_YYYYMMDD_HHMMSS.avi` (using standard XVID encoding). The red dot blinks, and a "● RECING" indicator flashes on the screen while active, accompanied by double-beep start/stop indicators.
+- **📷 Photo Button (Top-Right):** Touch or click to capture the frame. Saves as `captures/capture_YYYYMMDD_HHMMSS.png` with a camera shutter sound.
+- **🔴 Record Button (Top-Right):** Touch or click to toggle AVI video recording. Saves as `captures/recording_YYYYMMDD_HHMMSS.avi` with blinking REC indicator and audio beeps.
 
 ---
 
-## 🔊 Sound Effects Engine
-
-To provide immersive auditory feedback without stalling frame execution, the system uses **asynchronous background threads** utilizing Windows' built-in `winsound` synthesizer:
-* **Screenshot Shutter:** A high-pitched camera shutter beep.
-* **Recording Toggles:** Two-tone double beeps signaling start and stop.
-* **Kamehameha Charge:** A sliding frequency synthesizer sweep that builds pitch as the energy ball builds size.
-
----
-
-## 🖥️ Full Desktop Layout & Fullscreen
-
-* **Windows Scaling:** The application uses `cv2.WINDOW_NORMAL`, allowing you to drag to maximize, shrink, or resize the window to any resolution. Hardware scaling handles projection, maintaining the high performance of 360p or 720p internal tracking while filling your screen.
-* **Fullscreen Hotkey:** Press the **`F`** key to switch between borderless fullscreen mode and standard windowed mode instantly.
-
----
-
-## 🦴 Isolated Hand Skeletal Connections
-
-A key aesthetic change has been applied: **the application no longer draws lines connecting your two hands together in any effect.** 
-Instead, each hand's structure is visualized internally using the standard 21 hand landmarks connected by a neon skeleton overlay:
-* Connects wrist to fingertips along all 5 digits.
-* Draws concentric circles around joints to emphasize articulation.
-* Helps distinguish hand movement features independently.
-
----
-
-## 🛠️ Performance & Configuration Controls
-
-To keep the application running smoothly on lightweight setups, the following live configuration keys are available:
+## 🛠️ Live Keyboard Controls (Secondary Fallbacks)
 
 | Key | Action | Description |
 | :--- | :--- | :--- |
 | **`0` - `9`** | Switch Effect | Select visual effect 0 through 9. |
-| **`D`** | Toggle HUD | Shows or hides the diagnostic dashboard displaying real-time FPS, inference latency, rendering cost, and active resolution. |
-| **`R`** | Toggle Resolution | Switches capture resolution between **640x360** (Performance Mode) and **1280x720** (Quality Mode) on the fly, safely restarting camera streams. |
-| **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow** (blurs at 4x downsample, saving 70% CPU cycles), **Standard Glow** (direct heavy blur), and **Glow Off**. |
-| **`F`** | Toggle Fullscreen | Maximizes the window to full screen. |
-| **`C`** | Screenshot | Captures and saves the frame. |
-| **`V`** | Toggle Record | Starts/stops video recording. |
+| **`M`** | Toggle 3D Hologram | Summons/dismisses the 3D hologram overlay. |
+| **`N`** | Next Hologram Object | Cycles through the 16 3D models (`Shift+N` goes backwards). |
 | **`O`** | Toggle Hand Outline | Hides/shows the hand skeleton lines. |
-| **`M`** | Toggle 3D Hologram | Summons/hides the holographic 3D object (grab, rotate, zoom). |
-| **`N`** | Next Hologram Object | Cycles Cube → Globe → Human → Car → Plane → Building → Pyramid → Atom (`Shift+N` reverses). |
-| **`P`** | Toggle Pinch-Zoom | Enables/disables the digital camera zoom. |
-| **`[` `]`** | Spin Hologram (Y) | Manually rotates the active hologram left/right. |
-| **`;` `'`** | Tilt Hologram (X) | Manually rotates the active hologram up/down. |
-| **`=` `-`** | Zoom Hologram | Manually zooms the active hologram in/out. |
-| **`W`** | Toggle WebSocket Server | Broadcasts hand landmarks as JSON on port 8765. |
-| **`Q`** | Quit | Releases camera, stops recordings, and exits. |
-
----
-
-
-## Buy me a coffee
-Donate some money to support my work.  <br>Thank you! :)
-<br>
-<br>
-
->Click the button below to donate:
-
-<a href="https://buymeacoffee.com/paulb_codebreaker" target="_blank">
-  <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
-</a>
-<br>
-<br>
-<br>
-
->Or scan this QR Code to donate:
-
-<p align="center" >
-  <img src="./public/Photos/buy-me-a-coffe-qr-code.png" alt="Centered Logo" width="400" height="400">
-</p>
+| **`D`** | Toggle HUD | Shows or hides the diagnostic dashboard (FPS, latency, glow mode). |
+| **`R`** | Toggle Resolution | Switches between **640x360** (Performance) and **1280x720** (Quality). |
+| **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow**, **Standard Glow**, and **Glow Off**. |
+| **`F`** | Toggle Fullscreen | Maximizes window to borderless fullscreen. |
+| **`C`** | Screenshot | Captures and saves frame to `captures/`. |
+| **`V`** | Toggle Record | Starts/stops video recording. |
+| **`P`** | Toggle Pinch-Zoom | Enables/disables digital camera zoom. |
+| **`[` `]`** | Spin Hologram (Y) | Manually rotates active hologram left/right. |
+| **`;` `'`** | Tilt Hologram (X) | Manually rotates active hologram up/down. |
+| **`=` `-`** | Zoom Hologram | Manually zooms active hologram in/out. |
+| **`W`** | Toggle WebSocket Server | Broadcasts landmarks on port 8765. |
+| **`Q`** | Quit / Exit | Closes window and releases camera. |
