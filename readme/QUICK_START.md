@@ -106,6 +106,7 @@ When you run the app:
    - **0-9** → Switch effects
    - **R** → Toggle resolution (360p/720p)
    - **B** → Toggle glow mode
+  - **H** → Toggle hologram quality (Fast/Studio)
    - **F** → Toggle fullscreen
    - **C** → Capture photo
    - **V** → Record video

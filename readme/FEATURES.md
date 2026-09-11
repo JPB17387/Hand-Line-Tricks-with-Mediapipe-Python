@@ -8,6 +8,12 @@ This document describes all features, interactive gestures, holographic 3D objec
 
 The application features a complete **gesture-driven holographic 3D wireframe engine** (`hologram3d.py`) allowing full keyboard-free interaction. You can summon, grab, move & place anywhere on screen, rotate & tilt 360° continuously, and zoom in/out with your hands.
 
+### Clean Hand Interaction
+
+The default camera layer does not draw hand skeletons, joint dots, or motion-trail bones. MediaPipe inference still runs normally, so pinch drag, hold, wrist rotation, two-hand zoom, and palm recall remain available. Press **`O`** to toggle the optional debug skeleton.
+
+Press **`H`** to switch hologram quality: **Studio** adds a translucent volume, masked scan lighting, depth highlights, and a projector grid; **Fast** keeps the depth-sorted wireframe while skipping heavier volume passes.
+
 ### ✋ Natural Hand Gestures & Controls
 
 - **Pick Up & Place Anywhere (Drag & Drop):**
@@ -122,6 +128,7 @@ Switch between real-time effects by pressing `0` through `9`:
 | **`D`** | Toggle HUD | Shows or hides the diagnostic dashboard (FPS, latency, glow mode). |
 | **`R`** | Toggle Resolution | Switches between **640x360** (Performance) and **1280x720** (Quality). |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow**, **Standard Glow**, and **Glow Off**. |
+| **`H`** | Hologram Quality | Toggles **Studio** volume shading and **Fast** wireframe rendering. |
 | **`F`** | Toggle Fullscreen | Maximizes window to borderless fullscreen. |
 | **`C`** | Screenshot | Captures and saves frame to `captures/`. |
 | **`V`** | Toggle Record | Starts/stops video recording. |

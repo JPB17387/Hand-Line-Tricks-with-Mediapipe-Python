@@ -74,6 +74,8 @@ python main.py
 
 ##  First Time Running
 
+The default camera view is clean: hand landmarks are tracked but skeleton lines are hidden. Press `O` for debug lines, `M` for the 3D hologram, and `H` to switch Fast/Studio hologram quality.
+
 1. **Camera Selector appears** → Pick your camera (usually "Camera 0")
 2. **Video feed starts** → Hand detection begins automatically
 3. **Keyboard controls available**:

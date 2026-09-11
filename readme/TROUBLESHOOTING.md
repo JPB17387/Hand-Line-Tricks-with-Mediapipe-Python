@@ -137,7 +137,11 @@ This guide helps you resolve common issues when running the **Hand Tricks** appl
    - Press **B** to cycle through glow modes.
    - Mode 0 (Downsampled Blur) is fastest.
 
-3. **Disable diagnostic HUD:**
+3. **Use Fast hologram rendering:**
+   - Press **H** to skip Studio volume lighting and the projector grid.
+   - Fast mode keeps interactive 3D wireframe rendering with less CPU work.
+
+4. **Disable diagnostic HUD:**
    - Press **D** to hide the HUD overlay.
    - This saves a small amount of rendering time.
 

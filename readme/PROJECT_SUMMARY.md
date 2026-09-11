@@ -6,6 +6,8 @@
 
 Recent refinements: the hologram now supports unbounded 360-degree rotation on X and Y simultaneously, single-hand pull-to-zoom (in addition to two-hand pinch-spread zoom), inertia and snap-to-palm behavior, depth-shaded wireframe rendering, and an optional palm-line suppression mode when the hologram/zoom is active.
 
+Current interaction refinement: clean hand rendering is now the default across the main visual effects, including motion trails. Tracking remains active for pinch drag, hold, wrist rotation, zoom, and recall. Press `O` for the debug skeleton and `H` to choose Fast or Studio hologram rendering.
+
 # Project Analysis & Fix Summary
 
 **Project:** Hand Tricks - OpenCV Hand Tracking with MediaPipe  
