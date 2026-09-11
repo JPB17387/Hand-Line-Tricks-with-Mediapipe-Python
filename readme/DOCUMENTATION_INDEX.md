@@ -4,6 +4,8 @@
 
 - Hologram refinements: 8 objects, unbounded 360-degree X/Y rotation, single-hand pull-to-zoom, two-hand pinch-spread zoom, inertia/damping, snap-to-palm, depth-shaded wireframe rendering. See `readme/DEVELOPMENT.md` for implementation notes.
 
+- Current interaction: clean hand rendering is enabled by default while gesture tracking remains active. Press `O` for the debug skeleton and `H` to switch Fast/Studio hologram quality.
+
 ---
 
 

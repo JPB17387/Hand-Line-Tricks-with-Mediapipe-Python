@@ -1,5 +1,9 @@
 ## Development & Architecture Guide
 
+### Current Rendering Notes
+
+`AppState.hide_hand_lines` controls only visual overlays, not MediaPipe tracking: clean mode suppresses both the debug skeleton and motion ghost bones while pinch, drag, rotation, and zoom continue to use the landmarks. `AppState.holo_quality` selects `0` Fast or `1` Studio rendering. Fast mode skips masked volume lighting and the projector grid to reduce CPU work at larger resolutions.
+
 When developing, customizing, or extending the **Hand Tricks** project, review the following architecture notes:
 
 ### 1. Codebase Structure & Modules

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **Clean hand interaction and adaptive hologram rendering:** landmark tracking remains active while the default camera layer hides skeleton lines and motion-trail bones. Added `H` to switch between lower-cost Fast rendering and Studio volume lighting with masked scan highlights and a projector grid.
+
 - **Major Upgrade — 100% Keyboard-Free 3D Hologram Engine:**
   - Implemented intuitive natural hand gesture controls for all 3D hologram operations: pinch to pick up, freely drag and place anywhere on screen, and release to leave floating at that location with physics coasting.
   - Full 360° continuous tilt & rotation on all 3 axes (Pitch $R_x$, Yaw $R_y$, Roll $R_z$) driven by hand translation delta, real 3D wrist orientation vectors, and inertial momentum.

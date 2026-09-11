@@ -38,6 +38,12 @@ You no longer need to touch any keyboard buttons to summon, manipulate, rotate, 
 
 Powered by [`hologram3d.py`](hologram3d.py), a real-time 3D wireframe engine featuring full 3-axis rotation ($R_x, R_y, R_z$), perspective projection, depth-based glow shading, holographic projector base disk, and ascending laser emitter beams.
 
+### Clean Hands and Performance Modes
+
+Landmarks are always tracked for gestures, but the camera view is clean by default: no skeletal trace is painted over the real hand. Press **`O`** only when a landmark debug view is useful. This also keeps motion trails from drawing hand bones, while pinch, drag, hold, rotate, and zoom remain active.
+
+Press **`H`** to switch hologram rendering between **Studio** mode (translucent volume, masked scan lighting, depth highlights, and projector grid) and **Fast** mode (lower-cost depth wireframe).
+
 ### ✋ Natural Hand Gestures:
 
 1. **Pick Up & Place Anywhere (Drag-and-Drop):**
@@ -113,6 +119,7 @@ While the hologram and interface can be operated 100% keyboard-free, convenient 
 | **`D`** | Toggle Diagnostic HUD | Toggles the overlay showing FPS, model inference latency, and blur time. |
 | **`R`** | Toggle Resolution | Switches between **360p** (fast performance) and **720p** (high quality). |
 | **`B`** | Cycle Glow Mode | Cycles through **Optimized Glow**, **Standard Glow**, and **Glow Off**. |
+| **`H`** | Hologram Quality | Toggles **Studio** and **Fast** hologram rendering. |
 | **`F`** | Toggle Fullscreen | Maximizes window to borderless fullscreen or standard windowed mode. |
 | **`C`** | Take Screenshot | Saves the current screen frame to the `captures/` directory. |
 | **`V`** | Toggle Video Record | Toggles AVI video recording to the `captures/` directory. |
