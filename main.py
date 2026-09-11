@@ -225,10 +225,13 @@ class AppState:
         self.w = w
         self.h = h
         self.glow_mode = 0  # 0: Optimized, 1: Standard, 2: Off
+        self.holo_quality = 1  # 0: Fast geometry, 1: Volumetric studio render
         self.fullscreen = False
         
         # Interactive toggles
-        self.hide_hand_lines = False  # If True, don't draw skeletal lines/outline
+        # Keep the camera image natural by default.  Landmarks are still tracked,
+        # they are simply not painted over the user's hand.
+        self.hide_hand_lines = True   # Toggle with O when a landmark debug view is useful
         self.enable_cube = False      # Toggle holographic 3D object overlay ("Iron Man" mode)
         self.zoom_enabled = True      # Whether pinch zoom is active
         self.zoom_factor = 1.0        # Current smooth zoom factor (1.0 = normal)
@@ -259,6 +262,7 @@ class AppState:
         self.prev_hand_pose = None    # 3D hand orientation (pitch, yaw, roll) in previous frame
         self.prev_index_pos = None    # Legacy fallback pointer
         self.holo_grab_span = None    # Baseline hand span for single-hand depth zoom
+        self.holo_phase = 0.0         # Animation clock for the volumetric renderer
         
         # Touch UI button dwell counters: {btn_name: dwell_frames}
         self.touch_dwell = {}
@@ -399,14 +403,15 @@ def _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg, color=(200, 
     for pa, qa in zip(faces[0], faces[1]):
         cv2.line(canvas, pa, qa, (140, 130, 180), 2, cv2.LINE_AA)
 
-def draw_hologram_object(canvas, model_key, center, size, rot_x_deg, rot_y_deg, rot_z_deg=0.0, grabbed=False):
+def draw_hologram_object(canvas, model_key, center, size, rot_x_deg, rot_y_deg, rot_z_deg=0.0, grabbed=False, quality=1):
     """Render the current holographic 3D object with real 3-axis rotation,
     perspective projection, depth glow shading, and projector beam lines."""
     if hologram3d is not None:
         color = hologram3d.MODEL_COLORS.get(model_key)
         alpha_boost = 1.35 if grabbed else 1.0
         hologram3d.render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, size,
-                                    color=color, alpha_boost=alpha_boost, rot_z_deg=rot_z_deg)
+                                    color=color, alpha_boost=alpha_boost, rot_z_deg=rot_z_deg,
+                                    quality=quality)
     else:
         _draw_fallback_cube(canvas, center, size, rot_x_deg, rot_y_deg)
 
@@ -565,6 +570,8 @@ def main():
     # Start at 640x360 for high performance out of the box
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+    # A one-frame queue prevents interaction from feeling "behind" on USB cameras.
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     # Let camera adjust and grab initial frame dimensions
     for _ in range(5):
@@ -596,6 +603,7 @@ def main():
         print("  0-9   : Switch visual effects")
         print("  R     : Toggle resolution (720p / 360p)")
         print("  B     : Toggle Glow Mode (Optimized / Standard / Off)")
+        print("  H     : Toggle Hologram Quality (Fast / Studio)")
         print("  D     : Toggle Diagnostic HUD")
         print("  F     : Toggle Fullscreen Window")
         print("  C     : Capture Image screenshot")
@@ -751,12 +759,13 @@ def main():
                     ghost_color = (240, 100, 70) if age % 2 == 0 else (170, 70, 240)
                     
                     for hand in frame_hands:
-                        for pt in hand:
-                            cv2.circle(ghost_canvas, pt, 4, ghost_color, -1)
-                        for start_idx, end_idx in HAND_CONNECTIONS:
-                            pt1 = hand[start_idx]
-                            pt2 = hand[end_idx]
-                            cv2.line(ghost_canvas, pt1, pt2, ghost_color, 2, cv2.LINE_AA)
+                        if not state.hide_hand_lines:
+                            for pt in hand:
+                                cv2.circle(ghost_canvas, pt, 4, ghost_color, -1)
+                            for start_idx, end_idx in HAND_CONNECTIONS:
+                                pt1 = hand[start_idx]
+                                pt2 = hand[end_idx]
+                                cv2.line(ghost_canvas, pt1, pt2, ghost_color, 2, cv2.LINE_AA)
                             
                 canvas = cv2.addWeighted(canvas, 1.0, ghost_canvas, 1.0, 0)
 
@@ -1004,23 +1013,23 @@ def main():
                 if state.goku_sound_cooldown > 0:
                     state.goku_sound_cooldown -= 1
 
-            # --- RENDER HAND JOINT OVERLAYS & SKELETON ---
+            # --- OPTIONAL LANDMARK DEBUG OVERLAY ---
+            # Hologram mode deliberately leaves the real hand clean.  Gesture
+            # tracking runs independently of this drawing pass.
             if state.active_effect != 6:
                 if results.hand_landmarks:
                     for hand in results.hand_landmarks:
                         if not state.hide_hand_lines:
                             for start_idx, end_idx in HAND_CONNECTIONS:
-                                if (state.enable_cube or state.zoom_enabled) and (start_idx in PALM_INDICES or end_idx in PALM_INDICES):
-                                    continue
                                 pt1 = (int(hand[start_idx].x * state.w), int(hand[start_idx].y * state.h))
                                 pt2 = (int(hand[end_idx].x * state.w), int(hand[end_idx].y * state.h))
                                 cv2.line(canvas, pt1, pt2, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
                                 cv2.line(canvas, pt1, pt2, color=color, thickness=2, lineType=cv2.LINE_AA)
-                        
-                        for landmark in hand:
-                            x, y = int(landmark.x * state.w), int(landmark.y * state.h)
-                            cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
-                            cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
+
+                            for landmark in hand:
+                                x, y = int(landmark.x * state.w), int(landmark.y * state.h)
+                                cv2.circle(canvas, (x, y), 2, (255, 255, 255), -1)
+                                cv2.circle(canvas, (x, y), 5, color, 1, cv2.LINE_AA)
 
             # =========================================================================
             # KEYBOARD-FREE 3D HOLOGRAM INTERACTION ENGINE (IRON-MAN GESTURES)
@@ -1110,19 +1119,10 @@ def main():
                         state.cube['scale'] = max(0.3, min(4.5, state.cube.get('scale', 1.0) * span_ratio))
                         state.holo_grab_span = state.holo_grab_span * 0.88 + hand_span * 0.12
                         
-                    # 5. Visual Glow: Holographic Tractor Beam / Magnetic Tether
-                    tx = int(active_hand[4].x * state.w)
-                    ty = int(active_hand[4].y * state.h)
-                    ix = int(active_hand[8].x * state.w)
-                    iy = int(active_hand[8].y * state.h)
-                    cx = int(active_hand[9].x * state.w)
-                    cy = int(active_hand[9].y * state.h)
-                    
-                    draw_lightning(canvas, (tx, ty), (gx, gy), color=(255, 240, 160), thickness=2, displace=6)
-                    draw_lightning(canvas, (ix, iy), (gx, gy), color=(255, 240, 160), thickness=2, displace=6)
-                    draw_lightning(canvas, (cx, cy), (gx, gy), color=(200, 255, 240), thickness=1, displace=8)
-                    cv2.circle(canvas, (gx, gy), 10, (255, 255, 255), 1, cv2.LINE_AA)
-                    cv2.circle(canvas, (gx, gy), 16, (255, 200, 80), 1, cv2.LINE_AA)
+                    # A compact pinch cursor confirms the grab without drawing
+                    # distracting traces across the user's hand or camera image.
+                    cv2.circle(canvas, (gx, gy), 9, (245, 255, 255), 1, cv2.LINE_AA)
+                    cv2.circle(canvas, (gx, gy), 14, (255, 210, 90), 1, cv2.LINE_AA)
                     
                 # --- STATE: RELEASED (STAYS PLACED WHERE DROPPED, INERTIA COASTING) ---
                 else:
@@ -1200,7 +1200,20 @@ def main():
                 # Draw the 3D Holographic Object with full 3-axis rotation and depth glow
                 draw_hologram_object(canvas, state.holo_model, state.cube['pos'], state.cube['size'],
                                       state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
-                                      rot_z_deg=state.cube.get('rot_z', 0.0), grabbed=state.grabbed)
+                                      rot_z_deg=state.cube.get('rot_z', 0.0), grabbed=state.grabbed,
+                                      quality=state.holo_quality)
+                state.holo_phase += 0.075
+
+            # Keep a placed hologram visible when hands briefly leave the camera.
+            # This avoids the distracting pop-out/pop-in behaviour of the old loop.
+            elif state.enable_cube:
+                state.grabbed = False
+                if state.cube.get('auto_spin', True):
+                    state.cube['rot_y'] = state.cube.get('rot_y', 0.0) + 0.55
+                draw_hologram_object(canvas, state.holo_model, state.cube['pos'], state.cube['size'],
+                                     state.cube.get('rot_x', 0.0), state.cube.get('rot_y', 0.0),
+                                     rot_z_deg=state.cube.get('rot_z', 0.0), grabbed=False,
+                                     quality=state.holo_quality)
 
             # --- RENDER GLOW & MERGE IMAGES ---
             glow_start = time.perf_counter()
@@ -1336,12 +1349,13 @@ def main():
                 
                 glow_status = "Downsampled Blur" if state.glow_mode == 0 else ("Direct Blur" if state.glow_mode == 1 else "Glow Disabled")
                 cv2.putText(final_image, f"Glow: {glow_status}", (20, 108), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (170, 230, 180), 1, cv2.LINE_AA)
-                cv2.putText(final_image, f"Resolution: {state.w}x{state.h}", (20, 126), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 220, 240), 1, cv2.LINE_AA)
-                cv2.putText(final_image, f"Delegate: CPU (TFLite XNNPACK)", (20, 144), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 200, 150), 1, cv2.LINE_AA)
+                holo_quality_status = "Studio" if state.holo_quality else "Fast"
+                cv2.putText(final_image, f"Hologram: {holo_quality_status}", (20, 126), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 220, 240), 1, cv2.LINE_AA)
+                cv2.putText(final_image, f"Resolution: {state.w}x{state.h}", (20, 144), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 220, 240), 1, cv2.LINE_AA)
                 
                 # Bottom info instruction text bar
                 draw_semi_transparent_rect(final_image, (0, final_image.shape[0] - 25), (final_image.shape[1], final_image.shape[0]), (10, 10, 12), 0.85)
-                cv2.putText(final_image, "Controls: [0-9] Effects | [M] Hologram | [N] Next Object | [R] Res | [B] Glow | [F] Full | [C] Photo | [V] Rec | [Q] Exit", 
+                cv2.putText(final_image, "Controls: [0-9] Effects | [M] Hologram | [N] Next Object | [H] Holo Quality | [R] Res | [B] Glow | [Q] Exit", 
                             (12, final_image.shape[0] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (200, 200, 210), 1, cv2.LINE_AA)
 
             # --- POPUP NOTIFICATIONS SYSTEM ---
@@ -1410,6 +1424,9 @@ def main():
                 state.show_hud = not state.show_hud
             elif key == ord('b'):
                 state.glow_mode = (state.glow_mode + 1) % 3
+            elif key == ord('h'):
+                state.holo_quality = 1 - state.holo_quality
+                state.set_notification(f"Hologram Quality: {'Studio' if state.holo_quality else 'Fast'}")
             elif key == ord('f'):
                 state.fullscreen = not state.fullscreen
                 if state.fullscreen:
@@ -1427,6 +1444,7 @@ def main():
                 cap = cv2.VideoCapture(camera_index)
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, new_w)
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, new_h)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 
                 for _ in range(5):
                     ret, _ = cap.read()
@@ -1446,7 +1464,7 @@ def main():
                 cv2.setMouseCallback(window_name, mouse_callback, state)
             elif key == ord('o'):
                 state.hide_hand_lines = not state.hide_hand_lines
-                state.set_notification(f"Hand Lines {'Hidden' if state.hide_hand_lines else 'Shown'}")
+                state.set_notification(f"Hand overlay {'Clean camera' if state.hide_hand_lines else 'Debug skeleton'}")
             elif key == ord('m'):
                 state.enable_cube = not state.enable_cube
                 label = hologram3d.MODEL_LABELS.get(state.holo_model, state.holo_model) if hologram3d else state.holo_model

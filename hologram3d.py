@@ -1068,9 +1068,13 @@ def project(v, center, pixel_size, focal=4.2):
 # ---------------------------------------------------------------------------
 
 def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
-                    color=None, alpha_boost=1.0, rot_z_deg=0.0):
-    """Draw a glowing, depth-shaded wireframe hologram with projector disc base
-    and ascending laser emitter lines onto `canvas` in place.
+                    color=None, alpha_boost=1.0, rot_z_deg=0.0, quality=1):
+    """Draw a depth-shaded volumetric hologram onto `canvas` in place.
+
+    The model remains readable as a wireframe, but it also receives a subtle
+    projected surface, animated scanlines and a perspective floor grid.  This
+    gives the inexpensive OpenCV renderer a much more object-like appearance
+    without requiring a GPU or a separate 3D runtime.
     
     canvas      : BGR uint8 ndarray image
     model_key   : key in MODEL_ORDER (e.g. 'rocket', 'house', 'cube', etc.)
@@ -1081,6 +1085,7 @@ def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
     color       : optional BGR tint tuple
     alpha_boost : glow opacity multiplier
     rot_z_deg   : optional rotation around Z axis (roll) in degrees
+    quality     : 0 for the low-cost wireframe pass, 1 for volumetric studio shading
     """
     verts, edges, extra = get_model(model_key)
     if color is None:
@@ -1092,6 +1097,7 @@ def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
 
     rv = rotate_xyz(verts, rx, ry, rz)
     pts2d, depth = project(rv, center, pixel_size)
+    pts2d_i = pts2d.astype(np.int32)
 
     dmin, dmax = float(depth.min()), float(depth.max())
     rng = max(1e-3, dmax - dmin)
@@ -1117,7 +1123,45 @@ def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
             cv2.line(canvas, (int(center[0]), base_y), (int(pts2d_i[li][0]), int(pts2d_i[li][1])),
                      beam_color, 1, cv2.LINE_AA)
     except Exception:
-        pts2d_i = pts2d.astype(np.int32)
+        pass
+
+    # --- Projected volume: translucent body and clipped horizontal scanlines ---
+    # A convex projected envelope intentionally reads as a light-field rather
+    # than an opaque solid, so even dense models retain their hologram feel.
+    if quality > 0 and len(pts2d_i) >= 3 and pixel_size >= 18:
+        hull = cv2.convexHull(pts2d_i)
+        surface = np.zeros_like(canvas)
+        shade = tuple(max(0, min(255, int(ch * 0.34 * alpha_boost))) for ch in color)
+        cv2.fillConvexPoly(surface, hull, shade, cv2.LINE_AA)
+        cv2.addWeighted(surface, 0.075, canvas, 0.925, 0, canvas)
+
+        mask = np.zeros(canvas.shape[:2], dtype=np.uint8)
+        cv2.fillConvexPoly(mask, hull, 255, cv2.LINE_AA)
+        scan = np.zeros_like(canvas)
+        y0 = max(0, int(pts2d[:, 1].min()))
+        y1 = min(canvas.shape[0] - 1, int(pts2d[:, 1].max()))
+        spacing = max(4, int(pixel_size / 16))
+        # Offset from the pose makes the volume appear to refresh in depth.
+        offset = int((rot_y_deg * 0.15 + rot_x_deg * 0.08) % spacing)
+        scan_color = tuple(min(255, int(ch * 0.52 * alpha_boost)) for ch in color)
+        for y in range(y0 + offset, y1 + 1, spacing):
+            cv2.line(scan, (0, y), (canvas.shape[1] - 1, y), scan_color, 1, cv2.LINE_AA)
+        scan = cv2.bitwise_and(scan, scan, mask=mask)
+        cv2.addWeighted(scan, 0.42, canvas, 1.0, 0, canvas)
+
+        # A fine outline keeps the translucent volume crisp against busy video.
+        cv2.polylines(canvas, [hull], True,
+                      tuple(min(255, int(ch * 0.55)) for ch in color), 1, cv2.LINE_AA)
+
+        # A vertical light falloff gives the projected envelope a readable front
+        # plane without pretending that the webcam feed is an opaque surface.
+        light = np.zeros_like(canvas)
+        for row in range(y0, y1 + 1, max(3, int(pixel_size / 18))):
+            ratio = 1.0 - ((row - y0) / max(1, y1 - y0))
+            line_color = tuple(min(255, int(ch * 0.08 * ratio * alpha_boost)) for ch in color)
+            cv2.line(light, (0, row), (canvas.shape[1] - 1, row), line_color, 1, cv2.LINE_AA)
+        light = cv2.bitwise_and(light, light, mask=mask)
+        cv2.addWeighted(light, 0.34, canvas, 1.0, 0, canvas)
 
     # --- Painter's Algorithm: Depth-Sorted Glowing Wireframe Edges ---
     order = sorted(range(len(edges)), key=lambda i: -(depth[edges[i][0]] + depth[edges[i][1]]))
@@ -1132,7 +1176,8 @@ def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
         pb = (int(pts2d_i[b][0]), int(pts2d_i[b][1]))
         c = tuple(min(255, int(ch * brightness * alpha_boost)) for ch in color)
         # Soft outer halo + crisp inner core
-        cv2.line(canvas, pa, pb, (250, 250, 255), thickness + 1, cv2.LINE_AA)
+        if quality > 0:
+            cv2.line(canvas, pa, pb, (250, 250, 255), thickness + 1, cv2.LINE_AA)
         cv2.line(canvas, pa, pb, c, thickness, cv2.LINE_AA)
 
     # --- Glowing Vertex Nodes ---
@@ -1143,8 +1188,29 @@ def render_hologram(canvas, model_key, center, rot_x_deg, rot_y_deg, pixel_size,
         r = 4 if idx in big_points else 2
         r = max(1, int(r * (0.75 + 0.5 * t)))
         c = tuple(min(255, int(ch * (0.6 + 0.4 * t))) for ch in color)
-        cv2.circle(canvas, (px, py), r, (255, 255, 255), -1, cv2.LINE_AA)
+        if quality > 0:
+            cv2.circle(canvas, (px, py), r, (255, 255, 255), -1, cv2.LINE_AA)
         cv2.circle(canvas, (px, py), r + 2, c, 1, cv2.LINE_AA)
+
+    # --- Perspective projector grid: a stable spatial reference under the object ---
+    try:
+        if quality <= 0:
+            return
+        base_y = int(center[1] + pixel_size * 1.05)
+        grid = np.zeros_like(canvas)
+        grid_color = tuple(min(255, int(ch * 0.38 * alpha_boost)) for ch in color)
+        width = int(pixel_size * 1.1)
+        for i in range(-3, 4):
+            x = int(center[0] + i * width / 3)
+            cv2.line(grid, (int(center[0] + i * width * 0.45), base_y + max(5, pixel_size // 5)),
+                     (x, base_y - max(3, pixel_size // 12)), grid_color, 1, cv2.LINE_AA)
+        for row in (0.16, 0.38, 0.64, 0.90):
+            yy = int(base_y - pixel_size // 12 + row * max(5, pixel_size // 4))
+            half = int(width * (0.42 + row * 0.58))
+            cv2.line(grid, (int(center[0] - half), yy), (int(center[0] + half), yy), grid_color, 1, cv2.LINE_AA)
+        cv2.addWeighted(grid, 0.55, canvas, 1.0, 0, canvas)
+    except Exception:
+        pass
 
 
 def next_model(key):
